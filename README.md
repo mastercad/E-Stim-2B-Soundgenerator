@@ -2,6 +2,10 @@
 
 Plattformübergreifende Anwendung (Linux & Android) zur Erzeugung individueller Audio-Stimulationsmuster für das **E-Stim 2B** Elektrostimulationsgerät.
 
+<p align="center">
+  <img src="assets/application_main.png" alt="E-Stim 2B Sound Generator — Hauptbildschirm" width="600">
+</p>
+
 ## Features
 
 - **Signal Generator** — Manuelle Wellenform-Erstellung mit Echtzeit-Vorschau
