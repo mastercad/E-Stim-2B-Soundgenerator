@@ -75,9 +75,10 @@ jobs:
 
       - name: Build APK with Buildozer
         run: |
-          set -o pipefail
           export JAVA_HOME="$JAVA_HOME_17_X64"
-          yes | buildozer android debug 2>&1 | tee buildozer-full.log
+          yes 2>/dev/null | buildozer android debug 2>&1 | tee buildozer-full.log
+          RESULT=${PIPESTATUS[1]}
+          exit $RESULT
         timeout-minutes: 60
 
       - name: Show build log on failure
