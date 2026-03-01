@@ -22,7 +22,7 @@ version = 1.0.0
 # Note: sounddevice is NOT included - Android uses AudioTrack via pyjnius instead
 # Note: scipy removed — Fortran/OpenBLAS can't cross-compile for Android ARM.
 #       export.py has a pure-Python WAV fallback when scipy is unavailable.
-requirements = python3,kivy==2.3.1,kivymd==1.1.1,numpy,pillow,pyjnius,sdl2_ttf==2.20.0
+requirements = python3,kivy==2.3.1,kivymd==1.1.1,numpy==1.26.4,pillow,pyjnius
 
 # (str) Supported orientation (landscape, sensorLandscape, portrait, all)
 orientation = portrait
@@ -40,7 +40,7 @@ android.api = 33
 android.minapi = 24
 
 # (str) Android NDK version to use
-android.ndk = 28c
+android.ndk = 25b
 
 # (str) The Android arch to build for
 android.archs = arm64-v8a,armeabi-v7a
@@ -50,6 +50,9 @@ android.enable_androidx = True
 
 # (str) python-for-android branch
 p4a.branch = develop
+
+# (str) Local recipes directory (overrides p4a built-in recipes)
+p4a.local_recipes = %(source.dir)s/p4a_recipes
 
 # (str) Bootstrap to use for android builds
 p4a.bootstrap = sdl2
