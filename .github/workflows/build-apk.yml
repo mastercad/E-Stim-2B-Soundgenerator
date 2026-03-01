@@ -1,0 +1,140 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            git \
+            zip \
+            unzip \
+            openjdk-17-jdk \
+            autoconf \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            libtinfo5 \
+            cmake \
+            libffi-dev \
+            libssl-dev \
+            automake \
+            gettext \
+            libltdl-dev
+
+      - name: Cache Buildozer global directory
+        uses: actions/cache@v4
+        with:
+          path: ~/.buildozer
+          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-${{ runner.os }}-
+
+      - name: Cache .buildozer local directory
+        uses: actions/cache@v4
+        with:
+          path: .buildozer
+          key: buildozer-local-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-local-${{ runner.os }}-
+
+      - name: Install Buildozer & Cython
+        run: |
+          pip install --upgrade pip
+          pip install buildozer cython
+
+      - name: Build APK with Buildozer
+        run: |
+          yes | buildozer android debug 2>&1 | tail -50
+        timeout-minutes: 60
+
+      - name: Locate APK
+        id: apk
+        run: |
+          APK_PATH=$(find bin -name "*.apk" | head -1)
+          echo "path=$APK_PATH" >> "$GITHUB_OUTPUT"
+          echo "filename=$(basename $APK_PATH)" >> "$GITHUB_OUTPUT"
+          echo "Found APK: $APK_PATH"
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: estim2b-apk
+          path: ${{ steps.apk.outputs.path }}
+          retention-days: 30
+
+  release:
+    name: Create Release
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: estim2b-apk
+          path: apk/
+
+      - name: Extract version from buildozer.spec
+        id: version
+        run: |
+          VERSION=$(grep '^version' buildozer.spec | sed 's/version = //')
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          TAG="v${VERSION}-${SHORT_SHA}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION, Tag: $TAG"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "E-Stim 2B Sound Generator ${{ steps.version.outputs.version }}"
+          body: |
+            ## E-Stim 2B Sound Generator — Android APK
+
+            **Version:** ${{ steps.version.outputs.version }}
+            **Commit:** ${{ github.sha }}
+
+            ### Installation
+            1. Lade die `.apk`-Datei herunter
+            2. Auf dem Android-Gerät unter *Einstellungen → Sicherheit* die Installation aus unbekannten Quellen erlauben
+            3. APK öffnen und installieren
+
+            ### ⚠️ Sicherheitshinweis
+            Beginne IMMER mit niedriger Intensität am E-Stim 2B Gerät!
+          files: apk/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

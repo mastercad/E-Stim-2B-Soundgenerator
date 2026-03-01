@@ -1,0 +1,75 @@
+# E-Stim 2B Sound Generator - Kivy Design Language
+
+#:import NoTransition kivy.uix.screenmanager.NoTransition
+#:import SlideTransition kivy.uix.screenmanager.SlideTransition
+
+<NavigationLayout>:
+
+<ContentNavigationDrawer>:
+    orientation: "vertical"
+    padding: "8dp"
+    spacing: "8dp"
+
+    MDLabel:
+        text: "E-Stim 2B"
+        font_style: "H6"
+        size_hint_y: None
+        height: self.texture_size[1]
+        padding: ["12dp", "12dp"]
+
+    MDLabel:
+        text: "Sound Generator"
+        font_style: "Caption"
+        size_hint_y: None
+        height: self.texture_size[1]
+        padding: ["12dp", 0]
+
+    ScrollView:
+        MDList:
+            OneLineIconListItem:
+                text: "Generator"
+                on_press:
+                    root.nav_drawer.set_state("close")
+                    root.screen_manager.current = "generator"
+                IconLeftWidget:
+                    icon: "sine-wave"
+
+            OneLineIconListItem:
+                text: "Session Builder"
+                on_press:
+                    root.nav_drawer.set_state("close")
+                    root.screen_manager.current = "session_builder"
+                IconLeftWidget:
+                    icon: "playlist-music"
+
+            OneLineIconListItem:
+                text: "Auto-Generator"
+                on_press:
+                    root.nav_drawer.set_state("close")
+                    root.screen_manager.current = "auto_generator"
+                IconLeftWidget:
+                    icon: "auto-fix"
+
+            OneLineIconListItem:
+                text: "Player"
+                on_press:
+                    root.nav_drawer.set_state("close")
+                    root.screen_manager.current = "player"
+                IconLeftWidget:
+                    icon: "play-circle"
+
+            OneLineIconListItem:
+                text: "Bibliothek"
+                on_press:
+                    root.nav_drawer.set_state("close")
+                    root.screen_manager.current = "library"
+                IconLeftWidget:
+                    icon: "folder-music"
+
+            OneLineIconListItem:
+                text: "Einstellungen"
+                on_press:
+                    root.nav_drawer.set_state("close")
+                    root.screen_manager.current = "settings"
+                IconLeftWidget:
+                    icon: "cog"

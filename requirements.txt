@@ -1,0 +1,18 @@
+# E-Stim 2B Sound Generator - Dependencies
+# ==========================================
+
+# UI Framework (cross-platform: Android + Linux)
+kivy>=2.2.0
+kivymd==1.1.1
+
+# Audio / Signal Processing
+numpy>=1.24.0
+sounddevice>=0.4.6
+scipy>=1.10.0
+
+# Android support (used by buildozer)
+# pillow>=9.0.0
+# pyjnius>=1.4.0  # Auto-included by buildozer
+
+# Optional: for advanced audio on Android
+# audiostream>=0.3

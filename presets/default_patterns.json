@@ -1,0 +1,266 @@
+{
+    "gentle_pulse": {
+        "name": "Sanfter Puls",
+        "duration": 30.0,
+        "channel_a": {
+            "waveform": "SINE",
+            "frequency": 30.0,
+            "amplitude": 0.5,
+            "duty_cycle": 0.5,
+            "phase_offset": 0.0,
+            "freq_min": null,
+            "freq_max": null
+        },
+        "channel_b": {
+            "waveform": "SINE",
+            "frequency": 30.0,
+            "amplitude": 0.5,
+            "duty_cycle": 0.5,
+            "phase_offset": 0.0,
+            "freq_min": null,
+            "freq_max": null
+        },
+        "modulation_a": {
+            "mod_type": "TREMOLO",
+            "rate": 0.5,
+            "depth": 0.3
+        },
+        "modulation_b": {
+            "mod_type": "TREMOLO",
+            "rate": 0.5,
+            "depth": 0.3
+        },
+        "transition": "CROSSFADE"
+    },
+    "rhythmic_waves": {
+        "name": "Rhythmische Wellen",
+        "duration": 30.0,
+        "channel_a": {
+            "waveform": "SINE",
+            "frequency": 60.0,
+            "amplitude": 0.7,
+            "duty_cycle": 0.5,
+            "phase_offset": 0.0,
+            "freq_min": null,
+            "freq_max": null
+        },
+        "channel_b": {
+            "waveform": "SINE",
+            "frequency": 60.0,
+            "amplitude": 0.7,
+            "duty_cycle": 0.5,
+            "phase_offset": 3.14159,
+            "freq_min": null,
+            "freq_max": null
+        },
+        "modulation_a": {
+            "mod_type": "WAVE",
+            "rate": 0.3,
+            "depth": 0.6
+        },
+        "modulation_b": {
+            "mod_type": "WAVE",
+            "rate": 0.3,
+            "depth": 0.6
+        },
+        "transition": "CROSSFADE"
+    },
+    "sharp_tingle": {
+        "name": "Scharfes Kribbeln",
+        "duration": 20.0,
+        "channel_a": {
+            "waveform": "SQUARE",
+            "frequency": 150.0,
+            "amplitude": 0.6,
+            "duty_cycle": 0.5,
+            "phase_offset": 0.0,
+            "freq_min": null,
+            "freq_max": null
+        },
+        "channel_b": {
+            "waveform": "SQUARE",
+            "frequency": 160.0,
+            "amplitude": 0.6,
+            "duty_cycle": 0.5,
+            "phase_offset": 0.0,
+            "freq_min": null,
+            "freq_max": null
+        },
+        "modulation_a": {
+            "mod_type": "AM",
+            "rate": 2.0,
+            "depth": 0.4
+        },
+        "modulation_b": {
+            "mod_type": "AM",
+            "rate": 2.0,
+            "depth": 0.4
+        },
+        "transition": "CROSSFADE"
+    },
+    "deep_throb": {
+        "name": "Tiefes Pochen",
+        "duration": 30.0,
+        "channel_a": {
+            "waveform": "TRIANGLE",
+            "frequency": 15.0,
+            "amplitude": 0.8,
+            "duty_cycle": 0.5,
+            "phase_offset": 0.0,
+            "freq_min": null,
+            "freq_max": null
+        },
+        "channel_b": {
+            "waveform": "TRIANGLE",
+            "frequency": 15.0,
+            "amplitude": 0.8,
+            "duty_cycle": 0.5,
+            "phase_offset": 0.0,
+            "freq_min": null,
+            "freq_max": null
+        },
+        "modulation_a": {
+            "mod_type": "TREMOLO",
+            "rate": 1.0,
+            "depth": 0.8
+        },
+        "modulation_b": {
+            "mod_type": "TREMOLO",
+            "rate": 1.0,
+            "depth": 0.8
+        },
+        "transition": "CROSSFADE"
+    },
+    "climbing": {
+        "name": "Aufsteigend",
+        "duration": 60.0,
+        "channel_a": {
+            "waveform": "SINE",
+            "frequency": 80.0,
+            "amplitude": 0.9,
+            "duty_cycle": 0.5,
+            "phase_offset": 0.0,
+            "freq_min": null,
+            "freq_max": null
+        },
+        "channel_b": {
+            "waveform": "SINE",
+            "frequency": 80.0,
+            "amplitude": 0.9,
+            "duty_cycle": 0.5,
+            "phase_offset": 0.0,
+            "freq_min": null,
+            "freq_max": null
+        },
+        "modulation_a": {
+            "mod_type": "RAMP_UP",
+            "rate": 1.0,
+            "depth": 0.8
+        },
+        "modulation_b": {
+            "mod_type": "RAMP_UP",
+            "rate": 1.0,
+            "depth": 0.8
+        },
+        "transition": "CROSSFADE"
+    },
+    "burst_fire": {
+        "name": "Stoßfeuer",
+        "duration": 20.0,
+        "channel_a": {
+            "waveform": "BURST",
+            "frequency": 100.0,
+            "amplitude": 0.7,
+            "duty_cycle": 0.3,
+            "phase_offset": 0.0,
+            "freq_min": null,
+            "freq_max": null
+        },
+        "channel_b": {
+            "waveform": "BURST",
+            "frequency": 100.0,
+            "amplitude": 0.7,
+            "duty_cycle": 0.3,
+            "phase_offset": 0.0,
+            "freq_min": null,
+            "freq_max": null
+        },
+        "modulation_a": {
+            "mod_type": "NONE",
+            "rate": 1.0,
+            "depth": 0.0
+        },
+        "modulation_b": {
+            "mod_type": "NONE",
+            "rate": 1.0,
+            "depth": 0.0
+        },
+        "transition": "CROSSFADE"
+    },
+    "sweep": {
+        "name": "Frequenz-Sweep",
+        "duration": 30.0,
+        "channel_a": {
+            "waveform": "CHIRP",
+            "frequency": 20.0,
+            "amplitude": 0.7,
+            "duty_cycle": 0.5,
+            "phase_offset": 0.0,
+            "freq_min": 20.0,
+            "freq_max": 200.0
+        },
+        "channel_b": {
+            "waveform": "CHIRP",
+            "frequency": 20.0,
+            "amplitude": 0.7,
+            "duty_cycle": 0.5,
+            "phase_offset": 0.0,
+            "freq_min": 20.0,
+            "freq_max": 200.0
+        },
+        "modulation_a": {
+            "mod_type": "NONE",
+            "rate": 1.0,
+            "depth": 0.0
+        },
+        "modulation_b": {
+            "mod_type": "NONE",
+            "rate": 1.0,
+            "depth": 0.0
+        },
+        "transition": "CROSSFADE"
+    },
+    "asymmetric": {
+        "name": "Asymmetrisch",
+        "duration": 30.0,
+        "channel_a": {
+            "waveform": "SINE",
+            "frequency": 50.0,
+            "amplitude": 0.6,
+            "duty_cycle": 0.5,
+            "phase_offset": 0.0,
+            "freq_min": null,
+            "freq_max": null
+        },
+        "channel_b": {
+            "waveform": "SQUARE",
+            "frequency": 80.0,
+            "amplitude": 0.5,
+            "duty_cycle": 0.5,
+            "phase_offset": 0.0,
+            "freq_min": null,
+            "freq_max": null
+        },
+        "modulation_a": {
+            "mod_type": "TREMOLO",
+            "rate": 0.5,
+            "depth": 0.5
+        },
+        "modulation_b": {
+            "mod_type": "AM",
+            "rate": 1.5,
+            "depth": 0.4
+        },
+        "transition": "CROSSFADE"
+    }
+}
