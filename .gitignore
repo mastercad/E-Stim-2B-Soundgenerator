@@ -1,18 +1,49 @@
-**/__pycache__
-**/*.pyc
-**/*.pyo
-**/*.pyd
+# ─── Python ───────────────────────────────────────────────
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
 *.pyd
-*.egg-info/
-dist/
-build/
 *.egg
+*.egg-info/
+*.manifest
+*.spec.pyc
+
+# ─── Virtual Environment ─────────────────────────────────
+.venv/
+venv/
+ENV/
+
+# ─── Buildozer / Android Build ───────────────────────────
+.buildozer/
+bin/
+*.apk
+*.aab
+
+# ─── Build Logs ──────────────────────────────────────────
 *.log
-*.bak
+buildozer-full.log
+build.log
+
+# ─── IDE / Editor ────────────────────────────────────────
+.vscode/
+.idea/
 *.swp
 *.swo
+*.bak
 *.tmp
+*~
+.project
+.pydevproject
+
+# ─── OS-Dateien ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Generierte Sessions & Exports ──────────────────────
 sessions/
+exports/
+*.wav
+
+# ─── Dist / Build Artefakte ─────────────────────────────
+dist/
+build/

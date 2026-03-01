@@ -20,7 +20,9 @@ version = 1.0.0
 
 # (list) Application requirements
 # Note: sounddevice is NOT included - Android uses AudioTrack via pyjnius instead
-requirements = python3,kivy==2.3.1,kivymd==1.1.1,numpy,scipy,pillow,pyjnius,sdl2_ttf==2.20.0
+# Note: scipy removed — Fortran/OpenBLAS can't cross-compile for Android ARM.
+#       export.py has a pure-Python WAV fallback when scipy is unavailable.
+requirements = python3,kivy==2.3.1,kivymd==1.1.1,numpy,pillow,pyjnius,sdl2_ttf==2.20.0
 
 # (str) Supported orientation (landscape, sensorLandscape, portrait, all)
 orientation = portrait
