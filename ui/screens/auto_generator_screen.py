@@ -10,13 +10,13 @@ Allows users to:
 
 from kivy.metrics import dp
 
-from ui.widgets.slider_scrollview import SliderFriendlyScrollView as ScrollView
+from kivy.uix.scrollview import ScrollView
 
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.button import MDRaisedButton, MDFlatButton, MDIconButton
-from kivymd.uix.card import MDCard
+from ui.widgets.card_container import CardBox
 from kivymd.uix.slider import MDSlider
 from kivymd.uix.menu import MDDropdownMenu
 from kivymd.uix.selectioncontrol import MDCheckbox
@@ -78,7 +78,7 @@ class AutoGeneratorScreen(MDScreen):
         root.add_widget(toolbar)
 
         # Scrollable content
-        scroll = ScrollView()
+        scroll = ScrollView(do_scroll_x=False)
         content = MDBoxLayout(
             orientation="vertical",
             padding=dp(12),
@@ -243,7 +243,7 @@ class AutoGeneratorScreen(MDScreen):
         content.add_widget(gen_box)
 
         # ─── Result Info ─────────────────────────────────
-        self._result_card = MDCard(
+        self._result_card = CardBox(
             orientation="vertical",
             padding=dp(12),
             size_hint_y=None,
@@ -267,9 +267,9 @@ class AutoGeneratorScreen(MDScreen):
         root.add_widget(scroll)
         self.add_widget(root)
 
-    def _build_section(self, title: str) -> MDCard:
+    def _build_section(self, title: str) -> CardBox:
         """Build a section card with title."""
-        card = MDCard(
+        card = CardBox(
             orientation="vertical",
             padding=dp(12),
             spacing=dp(6),

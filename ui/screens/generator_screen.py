@@ -11,13 +11,13 @@ Allows users to:
 from kivy.clock import Clock
 from kivy.metrics import dp
 
-from ui.widgets.slider_scrollview import SliderFriendlyScrollView as ScrollView
+from kivy.uix.scrollview import ScrollView
 
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.button import MDRaisedButton, MDFlatButton, MDIconButton
-from kivymd.uix.card import MDCard
+from ui.widgets.card_container import CardBox
 from kivymd.uix.selectioncontrol import MDSwitch
 from kivymd.uix.slider import MDSlider
 from kivymd.uix.menu import MDDropdownMenu
@@ -110,7 +110,7 @@ class GeneratorScreen(MDScreen):
         root.add_widget(toolbar)
 
         # Scrollable content
-        scroll = ScrollView()
+        scroll = ScrollView(do_scroll_x=False)
         content = MDBoxLayout(
             orientation="vertical",
             padding=dp(12),
@@ -120,7 +120,7 @@ class GeneratorScreen(MDScreen):
         )
 
         # Waveform Preview
-        preview_card = MDCard(
+        preview_card = CardBox(
             orientation="vertical",
             padding=dp(8),
             size_hint_y=None,
@@ -168,7 +168,7 @@ class GeneratorScreen(MDScreen):
         content.add_widget(self._channel_b_card)
 
         # Duration control
-        dur_card = MDCard(
+        dur_card = CardBox(
             orientation="vertical",
             padding=dp(12),
             size_hint_y=None,
@@ -213,11 +213,11 @@ class GeneratorScreen(MDScreen):
         root.add_widget(scroll)
         self.add_widget(root)
 
-    def _build_channel_card(self, label: str, channel_id: str) -> MDCard:
+    def _build_channel_card(self, label: str, channel_id: str) -> CardBox:
         """Build a channel control card."""
         color = [0.2, 0.5, 1.0, 1.0] if channel_id == "a" else [1.0, 0.3, 0.3, 1.0]
 
-        card = MDCard(
+        card = CardBox(
             orientation="vertical",
             padding=dp(12),
             spacing=dp(6),

@@ -8,13 +8,13 @@ of all parameters to shape the stimulation experience live.
 from kivy.clock import Clock
 from kivy.metrics import dp
 
-from ui.widgets.slider_scrollview import SliderFriendlyScrollView as ScrollView
+from kivy.uix.scrollview import ScrollView
 
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.button import MDRaisedButton, MDFlatButton, MDIconButton
-from kivymd.uix.card import MDCard
+from ui.widgets.card_container import CardBox
 from kivymd.uix.slider import MDSlider
 from kivymd.uix.menu import MDDropdownMenu
 from kivymd.uix.progressbar import MDProgressBar
@@ -90,7 +90,7 @@ class PlayerScreen(MDScreen):
         root.add_widget(toolbar)
 
         # Scrollable content
-        scroll = ScrollView()
+        scroll = ScrollView(do_scroll_x=False)
         content = MDBoxLayout(
             orientation="vertical",
             padding=dp(12),
@@ -100,7 +100,7 @@ class PlayerScreen(MDScreen):
         )
 
         # ─── Session Info ────────────────────────────────
-        self._info_card = MDCard(
+        self._info_card = CardBox(
             orientation="vertical",
             padding=dp(12),
             size_hint_y=None,
@@ -125,7 +125,7 @@ class PlayerScreen(MDScreen):
         content.add_widget(self._info_card)
 
         # ─── Waveform Display ────────────────────────────
-        display_card = MDCard(
+        display_card = CardBox(
             orientation="vertical",
             padding=dp(4),
             size_hint_y=None,
@@ -381,8 +381,8 @@ class PlayerScreen(MDScreen):
         root.add_widget(scroll)
         self.add_widget(root)
 
-    def _build_section(self, title: str) -> MDCard:
-        card = MDCard(
+    def _build_section(self, title: str) -> CardBox:
+        card = CardBox(
             orientation="vertical",
             padding=dp(12),
             spacing=dp(4),

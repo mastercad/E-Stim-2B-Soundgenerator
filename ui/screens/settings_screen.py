@@ -4,13 +4,13 @@ Settings Screen - Application configuration.
 
 from kivy.metrics import dp
 
-from ui.widgets.slider_scrollview import SliderFriendlyScrollView as ScrollView
+from kivy.uix.scrollview import ScrollView
 
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.button import MDFlatButton, MDIconButton
-from kivymd.uix.card import MDCard
+from ui.widgets.card_container import CardBox
 from kivymd.uix.slider import MDSlider
 from kivymd.uix.selectioncontrol import MDSwitch
 from kivymd.uix.menu import MDDropdownMenu
@@ -61,7 +61,7 @@ class SettingsScreen(MDScreen):
         root.add_widget(toolbar)
 
         # Scrollable content
-        scroll = ScrollView()
+        scroll = ScrollView(do_scroll_x=False)
         content = MDBoxLayout(
             orientation="vertical",
             padding=dp(12),
@@ -178,8 +178,8 @@ class SettingsScreen(MDScreen):
         root.add_widget(scroll)
         self.add_widget(root)
 
-    def _build_section(self, title: str) -> MDCard:
-        card = MDCard(
+    def _build_section(self, title: str) -> CardBox:
+        card = CardBox(
             orientation="vertical",
             padding=dp(12),
             spacing=dp(6),
