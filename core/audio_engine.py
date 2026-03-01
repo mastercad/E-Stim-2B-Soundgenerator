@@ -130,11 +130,14 @@ class AudioEngine:
     - Session mode: Play back a complete session with segments and transitions
     - Live parameter modification during playback
     - Callback hooks for UI updates
+
+    Uses a short crossfade to eliminate clicks when parameters change.
     """
 
     # Audio buffer settings
     BUFFER_SIZE = 1024   # Samples per buffer (lower = more responsive, higher = more stable)
     SAMPLE_RATE = 44100
+    CROSSFADE_SAMPLES = 64  # ~1.5 ms crossfade to eliminate clicks
 
     def __init__(self, sample_rate: int = 44100, buffer_size: int = 1024):
         self.sample_rate = sample_rate
@@ -148,6 +151,9 @@ class AudioEngine:
         # State
         self.state = EngineState.STOPPED
         self.live_params = LiveParams()
+
+        # Crossfade: keep the tail of the previous buffer
+        self._prev_tail: Optional[np.ndarray] = None
 
         # Session playback
         self._session: Optional[Session] = None
@@ -194,6 +200,7 @@ class AudioEngine:
             return
 
         self._session = None
+        self._prev_tail = None
         self.generator.reset_phase()
         self.modulator_a.reset_phase()
         self.modulator_b.reset_phase()
@@ -213,6 +220,7 @@ class AudioEngine:
         self._session = session
         self._session_position = 0.0
         self._current_segment_idx = 0
+        self._prev_tail = None
         self.live_params.master_volume = session.master_volume
 
         if session.segments:
@@ -275,6 +283,7 @@ class AudioEngine:
 
         self._session_position = 0.0
         self._current_segment_idx = 0
+        self._prev_tail = None
         self._set_state(EngineState.STOPPED)
 
     def toggle_play_pause(self):
@@ -357,6 +366,10 @@ class AudioEngine:
         """
         Audio callback - called by sounddevice for each buffer of audio data.
         This runs in a separate thread and must be fast.
+
+        A short crossfade is applied at the start of each buffer against
+        the tail of the previous buffer to eliminate clicks caused by
+        waveform-type or parameter changes.
         """
         try:
             # Get current parameters
@@ -410,6 +423,18 @@ class AudioEngine:
             # Apply master volume
             stereo *= params['master_volume']
 
+            # ── Crossfade with previous buffer tail ───────────
+            # This eliminates clicks when waveform type, frequency, or
+            # other parameters change between buffers.
+            cf = min(self.CROSSFADE_SAMPLES, frames)
+            if self._prev_tail is not None and cf > 0:
+                fade_in = np.linspace(0.0, 1.0, cf, dtype=np.float32).reshape(-1, 1)
+                fade_out = 1.0 - fade_in
+                stereo[:cf] = stereo[:cf] * fade_in + self._prev_tail[-cf:] * fade_out
+
+            # Save tail for next crossfade (copy to avoid reference issues)
+            self._prev_tail = stereo[-cf:].copy() if cf > 0 else None
+
             # Clip to safe range
             np.clip(stereo, -1.0, 1.0, out=stereo)
 
@@ -418,6 +443,7 @@ class AudioEngine:
         except Exception as e:
             # On error, output silence
             outdata[:] = 0
+            self._prev_tail = None
             print(f"Audio callback Fehler: {e}")
 
     def _update_session_position(self, frames: int):

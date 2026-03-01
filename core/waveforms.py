@@ -28,16 +28,19 @@ class WaveformGenerator:
     Generates audio waveforms suitable for E-Stim 2B input.
 
     All waveforms are generated as numpy arrays with values in [-1.0, 1.0].
-    The generator maintains phase continuity for real-time streaming.
+    The generator maintains phase continuity for real-time streaming,
+    even across frequency changes (no clicks/pops).
     """
 
     def __init__(self, sample_rate: int = 44100):
         self.sample_rate = sample_rate
-        self._phase = 0.0  # Phase accumulator for continuity
+        self._phase = 0.0        # Phase accumulator (radians, mod 2π)
+        self._sample_count = 0   # Global sample count for non-phase-aware types
 
     def reset_phase(self):
         """Reset the phase accumulator."""
         self._phase = 0.0
+        self._sample_count = 0
 
     def generate(
         self,
@@ -62,6 +65,7 @@ class WaveformGenerator:
             duty_cycle: Duty cycle for pulse waveform [0.0, 1.0]
             phase_offset: Phase offset in radians
             continuous: If True, maintain phase continuity between calls
+                        (smooth across frequency changes — no clicks)
 
         Returns:
             numpy array of float64 samples
@@ -71,14 +75,31 @@ class WaveformGenerator:
         elif num_samples is None:
             raise ValueError("Either duration or num_samples must be specified")
 
-        # Generate time array with phase continuity
         if continuous:
-            t = (np.arange(num_samples) + self._phase) / self.sample_rate
-            self._phase += num_samples
+            # ── Phase-accumulator approach ──────────────────────
+            # Increment phase by (2π × freq / sr) per sample.
+            # Because the starting phase is carried over from the previous
+            # buffer, changing frequency between calls produces NO
+            # discontinuity — the waveform simply continues from where it
+            # left off, just at a different speed.
+            phase_inc = 2 * np.pi * frequency / self.sample_rate
+            phase = self._phase + phase_offset + np.arange(num_samples) * phase_inc
+            # Store final phase for next call (keep within [0, 2π) to
+            # avoid float precision loss over long playback)
+            self._phase = (phase[-1] + phase_inc) % (2 * np.pi) if num_samples > 0 else self._phase
+            self._sample_count += num_samples
         else:
+            # One-shot (preview, export) — no state kept
             t = np.arange(num_samples) / self.sample_rate
+            phase = 2 * np.pi * frequency * t + phase_offset
 
-        phase = 2 * np.pi * frequency * t + phase_offset
+        # For chirp/burst we still need a time array
+        t: np.ndarray = np.empty(0)
+        if waveform_type in (WaveformType.CHIRP, WaveformType.BURST):
+            if continuous:
+                t = (np.arange(num_samples) + self._sample_count - num_samples) / self.sample_rate
+            else:
+                t = np.arange(num_samples) / self.sample_rate
 
         generators = {
             WaveformType.SINE: self._sine,

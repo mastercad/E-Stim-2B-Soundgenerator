@@ -339,25 +339,34 @@ class AutoGeneratorScreen(MDScreen):
 
         self._last_session = self._generator.generate(self._config)
 
-        # Display result
+        # Display result summary (limit to avoid giant black card on phones)
         session = self._last_session
+        total_segs = len(session.segments)
+        max_show = 15  # Show at most this many segments
+
         info_lines = [
             f"[b]{session.name}[/b]",
             f"Dauer: {session.total_duration_formatted}",
-            f"Segmente: {len(session.segments)}",
+            f"Segmente: {total_segs}",
             "",
         ]
 
-        for i, seg in enumerate(session.segments):
+        for i, seg in enumerate(session.segments[:max_show]):
             info_lines.append(
                 f"  {i + 1}. {seg.name} ({seg.duration:.0f}s) - "
                 f"A:{seg.channel_a.waveform.value}@{seg.channel_a.frequency:.0f}Hz "
                 f"B:{seg.channel_b.waveform.value}@{seg.channel_b.frequency:.0f}Hz"
             )
 
+        if total_segs > max_show:
+            info_lines.append(f"  ... und {total_segs - max_show} weitere Segmente")
+
         self._result_label.text = "\n".join(info_lines)
         self._result_label.markup = True
-        self._result_card.height = dp(50 + len(session.segments) * 22)
+
+        # Cap card height to a sensible maximum
+        shown = min(total_segs, max_show) + (1 if total_segs > max_show else 0)
+        self._result_card.height = min(dp(50 + shown * 22), dp(420))
 
         self._save_btn.disabled = False
         self._play_btn.disabled = False
