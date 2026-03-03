@@ -80,26 +80,30 @@ class LiveParams:
                     setattr(self, key, value)
 
     def get_snapshot(self) -> Dict[str, Any]:
-        """Get a thread-safe snapshot of all parameters."""
-        with self._lock:
-            return {
-                'waveform_a': self.waveform_a,
-                'frequency_a': self.frequency_a,
-                'amplitude_a': self.amplitude_a,
-                'duty_cycle_a': self.duty_cycle_a,
-                'waveform_b': self.waveform_b,
-                'frequency_b': self.frequency_b,
-                'amplitude_b': self.amplitude_b,
-                'duty_cycle_b': self.duty_cycle_b,
-                'mod_type_a': self.mod_type_a,
-                'mod_rate_a': self.mod_rate_a,
-                'mod_depth_a': self.mod_depth_a,
-                'mod_type_b': self.mod_type_b,
-                'mod_rate_b': self.mod_rate_b,
-                'mod_depth_b': self.mod_depth_b,
-                'master_volume': self.master_volume,
-                'balance': self.balance,
-            }
+        """Get a snapshot of all parameters.
+
+        Individual attribute reads are atomic in CPython (GIL) so we
+        can avoid locking here – this is the hot path called from the
+        audio-callback thread and must never block.
+        """
+        return {
+            'waveform_a': self.waveform_a,
+            'frequency_a': self.frequency_a,
+            'amplitude_a': self.amplitude_a,
+            'duty_cycle_a': self.duty_cycle_a,
+            'waveform_b': self.waveform_b,
+            'frequency_b': self.frequency_b,
+            'amplitude_b': self.amplitude_b,
+            'duty_cycle_b': self.duty_cycle_b,
+            'mod_type_a': self.mod_type_a,
+            'mod_rate_a': self.mod_rate_a,
+            'mod_depth_a': self.mod_depth_a,
+            'mod_type_b': self.mod_type_b,
+            'mod_rate_b': self.mod_rate_b,
+            'mod_depth_b': self.mod_depth_b,
+            'master_volume': self.master_volume,
+            'balance': self.balance,
+        }
 
     def load_from_segment(self, segment: PatternSegment):
         """Load parameters from a pattern segment."""
@@ -135,11 +139,11 @@ class AudioEngine:
     """
 
     # Audio buffer settings
-    BUFFER_SIZE = 1024   # Samples per buffer (lower = more responsive, higher = more stable)
+    BUFFER_SIZE = 2048   # Samples per buffer (~46 ms at 44100 – more stable)
     SAMPLE_RATE = 44100
     CROSSFADE_SAMPLES = 64  # ~1.5 ms crossfade to eliminate clicks
 
-    def __init__(self, sample_rate: int = 44100, buffer_size: int = 1024):
+    def __init__(self, sample_rate: int = 44100, buffer_size: int = 2048):
         self.sample_rate = sample_rate
         self.BUFFER_SIZE = buffer_size
 
@@ -155,6 +159,15 @@ class AudioEngine:
         # Crossfade: keep the tail of the previous buffer
         self._prev_tail: Optional[np.ndarray] = None
 
+        # Pre-compute crossfade curves (avoids allocation in callback)
+        cf = self.CROSSFADE_SAMPLES
+        self._fade_in = np.linspace(0.0, 1.0, cf, dtype=np.float32).reshape(-1, 1)
+        self._fade_out = 1.0 - self._fade_in
+
+        # Re-usable modulation param objects (avoid per-buffer allocation)
+        self._mod_params_a: Optional[ModulationParams] = None
+        self._mod_params_b: Optional[ModulationParams] = None
+
         # Session playback
         self._session: Optional[Session] = None
         self._session_position = 0.0  # Current playback position in seconds
@@ -168,6 +181,10 @@ class AudioEngine:
         self._on_position_update: Optional[Callable[[float, int], None]] = None
         self._on_state_change: Optional[Callable[[EngineState], None]] = None
         self._on_segment_change: Optional[Callable[[int, PatternSegment], None]] = None
+
+        # Throttle position-update callback (called from audio thread)
+        self._position_cb_counter = 0
+        self._POSITION_CB_EVERY = 5  # only notify every N buffers (~230 ms at 2048/44100)
 
         # Threading
         self._lock = threading.Lock()
@@ -372,14 +389,15 @@ class AudioEngine:
         waveform-type or parameter changes.
         """
         try:
-            # Get current parameters
+            # Get current parameters (lock-free – see LiveParams.get_snapshot)
             params = self.live_params.get_snapshot()
 
             # Handle session segment tracking
             if self._session:
                 self._update_session_position(frames)
 
-            # Generate stereo signal
+            # Generate stereo signal directly into float32 to avoid
+            # a costly dtype conversion at the end.
             stereo = self.generator.generate_stereo_block(
                 num_samples=frames,
                 waveform_a=params['waveform_a'],
@@ -392,27 +410,26 @@ class AudioEngine:
                 duty_cycle_b=params['duty_cycle_b'],
             )
 
+            # Re-use cached ModulationParams to avoid allocation per buffer
             # Apply modulation to Channel A
             if params['mod_type_a'] != ModulationType.NONE:
-                mod_params_a = ModulationParams(
-                    mod_type=params['mod_type_a'],
-                    rate=params['mod_rate_a'],
-                    depth=params['mod_depth_a'],
-                )
-                left = self.modulator_a.apply(stereo[:, 0], mod_params_a, continuous=True)
-                stereo[:, 0] = left
+                if self._mod_params_a is None:
+                    self._mod_params_a = ModulationParams()
+                self._mod_params_a.mod_type = params['mod_type_a']
+                self._mod_params_a.rate = params['mod_rate_a']
+                self._mod_params_a.depth = params['mod_depth_a']
+                stereo[:, 0] = self.modulator_a.apply(stereo[:, 0], self._mod_params_a, continuous=True)
 
             # Apply modulation to Channel B
             if params['mod_type_b'] != ModulationType.NONE:
-                mod_params_b = ModulationParams(
-                    mod_type=params['mod_type_b'],
-                    rate=params['mod_rate_b'],
-                    depth=params['mod_depth_b'],
-                )
-                right = self.modulator_b.apply(stereo[:, 1], mod_params_b, continuous=True)
-                stereo[:, 1] = right
+                if self._mod_params_b is None:
+                    self._mod_params_b = ModulationParams()
+                self._mod_params_b.mod_type = params['mod_type_b']
+                self._mod_params_b.rate = params['mod_rate_b']
+                self._mod_params_b.depth = params['mod_depth_b']
+                stereo[:, 1] = self.modulator_b.apply(stereo[:, 1], self._mod_params_b, continuous=True)
 
-            # Apply balance
+            # Apply balance (in-place)
             balance = params['balance']
             if balance != 0.0:
                 if balance < 0:
@@ -420,22 +437,19 @@ class AudioEngine:
                 else:
                     stereo[:, 0] *= (1.0 - balance)
 
-            # Apply master volume
+            # Apply master volume (in-place)
             stereo *= params['master_volume']
 
             # ── Crossfade with previous buffer tail ───────────
-            # This eliminates clicks when waveform type, frequency, or
-            # other parameters change between buffers.
             cf = min(self.CROSSFADE_SAMPLES, frames)
             if self._prev_tail is not None and cf > 0:
-                fade_in = np.linspace(0.0, 1.0, cf, dtype=np.float32).reshape(-1, 1)
-                fade_out = 1.0 - fade_in
-                stereo[:cf] = stereo[:cf] * fade_in + self._prev_tail[-cf:] * fade_out
+                # Re-use pre-computed fade curves
+                stereo[:cf] = stereo[:cf] * self._fade_in[:cf] + self._prev_tail[-cf:] * self._fade_out[:cf]
 
-            # Save tail for next crossfade (copy to avoid reference issues)
+            # Save tail for next crossfade
             self._prev_tail = stereo[-cf:].copy() if cf > 0 else None
 
-            # Clip to safe range
+            # Clip to safe range and write (in-place)
             np.clip(stereo, -1.0, 1.0, out=stereo)
 
             outdata[:] = stereo.astype(np.float32)
@@ -479,9 +493,12 @@ class AudioEngine:
                 break
             elapsed += seg.duration
 
-        # Notify position update
+        # Notify position update (throttled – skip most buffers)
         if self._on_position_update:
-            self._on_position_update(self._session_position, self._current_segment_idx)
+            self._position_cb_counter += 1
+            if self._position_cb_counter >= self._POSITION_CB_EVERY:
+                self._position_cb_counter = 0
+                self._on_position_update(self._session_position, self._current_segment_idx)
 
     def _apply_segment_transition(self, new_segment: PatternSegment):
         """Apply transition effect when changing segments."""

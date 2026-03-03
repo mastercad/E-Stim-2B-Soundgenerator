@@ -42,6 +42,7 @@ class GeneratorScreen(MDScreen):
         self._generator = StereoWaveformGenerator(44100)
         self._exporter = AudioExporter(44100)
         self._preview_event = None
+        self._preview_pending = None  # Throttled preview update
         self._built = False
 
         # Current settings
@@ -348,7 +349,7 @@ class GeneratorScreen(MDScreen):
             # Unlinking: update B sliders to show current B settings
             self._sync_b_sliders_to_settings()
 
-        self._update_preview()
+        self._schedule_preview()
 
     def _sync_channel_b_to_a(self):
         """Copy all Channel A settings to Channel B and update B slider widgets."""
@@ -381,7 +382,7 @@ class GeneratorScreen(MDScreen):
         self._settings[f'waveform_{channel}'] = waveform
         if self._settings['link_channels'] and channel == 'a':
             self._settings['waveform_b'] = waveform
-        self._update_preview()
+        self._schedule_preview()
         # Update live engine
         if self._engine and self._engine.is_playing:
             self._engine.set_waveform(channel, waveform)
@@ -393,7 +394,7 @@ class GeneratorScreen(MDScreen):
         self._settings[f'frequency_{channel}'] = value
         if self._settings['link_channels'] and channel == 'a':
             self._settings['frequency_b'] = value
-        self._update_preview()
+        self._schedule_preview()  # throttled
         if self._engine and self._engine.is_playing:
             self._engine.set_frequency(channel, value)
             if self._settings['link_channels']:
@@ -404,7 +405,7 @@ class GeneratorScreen(MDScreen):
         self._settings[f'amplitude_{channel}'] = value / 100.0
         if self._settings['link_channels'] and channel == 'a':
             self._settings['amplitude_b'] = value / 100.0
-        self._update_preview()
+        self._schedule_preview()  # throttled
         if self._engine and self._engine.is_playing:
             self._engine.set_amplitude(channel, value / 100.0)
             if self._settings['link_channels']:
@@ -415,7 +416,7 @@ class GeneratorScreen(MDScreen):
         self._settings[f'mod_type_{channel}'] = mod_type
         if self._settings['link_channels'] and channel == 'a':
             self._settings['mod_type_b'] = mod_type
-        self._update_preview()
+        self._schedule_preview()
 
     def _on_mod_rate_change(self, channel, value, label):
         rate = value / 10.0
@@ -439,11 +440,18 @@ class GeneratorScreen(MDScreen):
         else:
             self._dur_label.text = f"{int(value)} Sek"
 
+    def _schedule_preview(self):
+        """Schedule a throttled preview update (~8 FPS max during slider drag)."""
+        if self._preview_pending is not None:
+            self._preview_pending.cancel()
+        self._preview_pending = Clock.schedule_once(lambda dt: self._update_preview(), 0.12)
+
     def _update_preview(self):
         """Update the waveform preview display."""
+        self._preview_pending = None
         try:
             s = self._settings
-            preview_samples = 2000
+            preview_samples = 500  # fewer samples – only used for visual display
             stereo = self._generator.generate_stereo(
                 waveform_a=s['waveform_a'],
                 frequency_a=s['frequency_a'],

@@ -38,6 +38,8 @@ class PlayerScreen(MDScreen):
         self._session = None
         self._update_event = None
         self._built = False
+        self._waveform_tick = 0  # Counter to throttle waveform display updates
+        self._preview_gen = None  # Cached preview waveform generator
 
         # Set up engine callbacks
         self._engine.set_callbacks(
@@ -54,8 +56,8 @@ class PlayerScreen(MDScreen):
         if not self._built:
             self._build_ui()
             self._built = True
-        # Start UI update timer
-        self._update_event = Clock.schedule_interval(self._update_ui, 1.0 / 15)
+        # Start UI update timer (10 FPS is enough for transport controls)
+        self._update_event = Clock.schedule_interval(self._update_ui, 1.0 / 10)
 
     def on_leave(self):
         if self._update_event:
@@ -524,24 +526,28 @@ class PlayerScreen(MDScreen):
                     f"Segment {idx + 1}/{total_segs}: {seg.name}"
                 )
 
-        # Update waveform display with current parameters
+        # Update waveform display (only every 4th tick ≈ 2.5 FPS – visual only)
         if self._engine.is_playing:
-            self._update_waveform_preview()
+            self._waveform_tick += 1
+            if self._waveform_tick >= 4:
+                self._waveform_tick = 0
+                self._update_waveform_preview()
 
     def _update_waveform_preview(self):
         """Generate a preview of the current waveform for display."""
         try:
             params = self._engine.live_params.get_snapshot()
-            from core.waveforms import StereoWaveformGenerator
-            gen = StereoWaveformGenerator(44100)
-            stereo = gen.generate_stereo(
+            if self._preview_gen is None:
+                from core.waveforms import StereoWaveformGenerator
+                self._preview_gen = StereoWaveformGenerator(44100)
+            stereo = self._preview_gen.generate_stereo(
                 waveform_a=params['waveform_a'],
                 frequency_a=params['frequency_a'],
                 amplitude_a=params['amplitude_a'],
                 waveform_b=params['waveform_b'],
                 frequency_b=params['frequency_b'],
                 amplitude_b=params['amplitude_b'],
-                num_samples=1000,
+                num_samples=500,
             )
             self._waveform_display.set_data(stereo[:, 0], stereo[:, 1])
         except Exception:

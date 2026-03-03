@@ -173,5 +173,6 @@ def create_audio_stream(
             blocksize=blocksize,
             dtype=dtype,
             callback=callback,
+            latency='high',  # prefer stability over low latency
         )
         return stream
