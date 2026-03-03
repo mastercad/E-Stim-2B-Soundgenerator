@@ -268,8 +268,8 @@ class StereoWaveformGenerator:
         amplitude_b: float = 1.0,
         duty_cycle_b: float = 0.5,
     ) -> np.ndarray:
-        """Generate a stereo block for real-time streaming."""
-        return self.generate_stereo(
+        """Generate a stereo block for real-time streaming (returns float32)."""
+        stereo = self.generate_stereo(
             waveform_a=waveform_a,
             frequency_a=frequency_a,
             amplitude_a=amplitude_a,
@@ -281,3 +281,7 @@ class StereoWaveformGenerator:
             num_samples=num_samples,
             continuous=True,
         )
+        # Ensure float32 for the audio callback (avoids per-buffer conversion)
+        if stereo.dtype != np.float32:
+            stereo = stereo.astype(np.float32)
+        return stereo

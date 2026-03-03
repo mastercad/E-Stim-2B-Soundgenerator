@@ -120,10 +120,10 @@ class LibraryScreen(MDScreen):
             md_bg_color=[0.12, 0.12, 0.15, 1],
             padding=[dp(8), 0],
         )
-        back_btn = MDFlatButton(
-            text="←", font_size="24sp",
+        back_btn = MDIconButton(
+            icon="arrow-left",
             on_release=lambda x: setattr(self.manager, 'current', 'home'),
-            theme_text_color="Custom", text_color=[1, 1, 1, 1],
+            theme_icon_color="Custom", icon_color=[1, 1, 1, 1],
         )
         toolbar.add_widget(back_btn)
         toolbar.add_widget(MDLabel(

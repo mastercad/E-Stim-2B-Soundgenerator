@@ -156,8 +156,10 @@ class AudioEngine:
         self.state = EngineState.STOPPED
         self.live_params = LiveParams()
 
-        # Crossfade: keep the tail of the previous buffer
+        # Crossfade: only applied when parameters change between buffers
         self._prev_tail: Optional[np.ndarray] = None
+        self._prev_params: Optional[Dict[str, Any]] = None  # detect changes
+        self._needs_crossfade = False
 
         # Pre-compute crossfade curves (avoids allocation in callback)
         cf = self.CROSSFADE_SAMPLES
@@ -379,25 +381,45 @@ class AudioEngine:
         )
         self._stream.start()
 
+    def _params_changed(self, params: Dict[str, Any]) -> bool:
+        """Check if audio-relevant parameters changed since last buffer."""
+        prev = self._prev_params
+        if prev is None:
+            return False  # first buffer – nothing to crossfade against
+        # Only waveform type and amplitude jumps create audible clicks;
+        # frequency changes are handled smoothly by the phase accumulator.
+        return (prev['waveform_a'] != params['waveform_a']
+                or prev['waveform_b'] != params['waveform_b']
+                or abs(prev['amplitude_a'] - params['amplitude_a']) > 0.05
+                or abs(prev['amplitude_b'] - params['amplitude_b']) > 0.05
+                or abs(prev['master_volume'] - params['master_volume']) > 0.05
+                or prev['mod_type_a'] != params['mod_type_a']
+                or prev['mod_type_b'] != params['mod_type_b'])
+
     def _audio_callback(self, outdata, frames, time_info, status):
         """
         Audio callback - called by sounddevice for each buffer of audio data.
         This runs in a separate thread and must be fast.
 
-        A short crossfade is applied at the start of each buffer against
-        the tail of the previous buffer to eliminate clicks caused by
-        waveform-type or parameter changes.
+        A short crossfade is applied ONLY when parameters change between
+        buffers (waveform type, amplitude jumps, modulation type) to
+        eliminate clicks.  Frequency changes are already smooth thanks
+        to the phase-accumulator in the waveform generator.
         """
         try:
             # Get current parameters (lock-free – see LiveParams.get_snapshot)
             params = self.live_params.get_snapshot()
 
+            # Detect whether we need a crossfade this buffer
+            needs_xfade = self._needs_crossfade or self._params_changed(params)
+            self._needs_crossfade = False
+            self._prev_params = params
+
             # Handle session segment tracking
             if self._session:
                 self._update_session_position(frames)
 
-            # Generate stereo signal directly into float32 to avoid
-            # a costly dtype conversion at the end.
+            # Generate stereo signal
             stereo = self.generator.generate_stereo_block(
                 num_samples=frames,
                 waveform_a=params['waveform_a'],
@@ -410,7 +432,6 @@ class AudioEngine:
                 duty_cycle_b=params['duty_cycle_b'],
             )
 
-            # Re-use cached ModulationParams to avoid allocation per buffer
             # Apply modulation to Channel A
             if params['mod_type_a'] != ModulationType.NONE:
                 if self._mod_params_a is None:
@@ -441,23 +462,27 @@ class AudioEngine:
             stereo *= params['master_volume']
 
             # ── Crossfade with previous buffer tail ───────────
+            # ONLY when parameters actually changed – otherwise the
+            # phase-continuous waveform needs no blending and applying
+            # a crossfade unconditionally was the source of audible
+            # periodic flutter (~21 Hz artifact).
             cf = min(self.CROSSFADE_SAMPLES, frames)
-            if self._prev_tail is not None and cf > 0:
-                # Re-use pre-computed fade curves
-                stereo[:cf] = stereo[:cf] * self._fade_in[:cf] + self._prev_tail[-cf:] * self._fade_out[:cf]
+            if needs_xfade and self._prev_tail is not None and cf > 0:
+                stereo[:cf] = (stereo[:cf] * self._fade_in[:cf]
+                               + self._prev_tail[-cf:] * self._fade_out[:cf])
 
-            # Save tail for next crossfade
+            # Always save tail (needed IF the next buffer has a param change)
             self._prev_tail = stereo[-cf:].copy() if cf > 0 else None
 
-            # Clip to safe range and write (in-place)
+            # Clip to safe range and write
             np.clip(stereo, -1.0, 1.0, out=stereo)
-
-            outdata[:] = stereo.astype(np.float32)
+            outdata[:frames] = stereo.astype(np.float32)
 
         except Exception as e:
             # On error, output silence
             outdata[:] = 0
             self._prev_tail = None
+            self._prev_params = None
             print(f"Audio callback Fehler: {e}")
 
     def _update_session_position(self, frames: int):
