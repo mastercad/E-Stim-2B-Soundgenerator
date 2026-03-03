@@ -4,7 +4,7 @@ Settings Screen - Application configuration.
 
 from kivy.metrics import dp
 
-from kivy.uix.scrollview import ScrollView
+from ui.widgets.slider_scrollview import SliderFriendlyScrollView
 
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
@@ -61,7 +61,7 @@ class SettingsScreen(MDScreen):
         root.add_widget(toolbar)
 
         # Scrollable content
-        scroll = ScrollView(do_scroll_x=False)
+        scroll = SliderFriendlyScrollView()
         content = MDBoxLayout(
             orientation="vertical",
             padding=dp(12),
@@ -83,8 +83,8 @@ class SettingsScreen(MDScreen):
         # Buffer size
         buf_box = MDBoxLayout(size_hint_y=None, height=dp(50))
         buf_box.add_widget(MDLabel(text="Buffer-Größe", size_hint_x=0.3))
-        buf_slider = MDSlider(min=256, max=4096, value=1024, size_hint_x=0.5)
-        buf_label = MDLabel(text="1024", size_hint_x=0.2, halign="right", font_style="Caption")
+        buf_slider = MDSlider(min=256, max=4096, value=2048, size_hint_x=0.5)
+        buf_label = MDLabel(text="2048", size_hint_x=0.2, halign="right", font_style="Caption")
         buf_slider.bind(value=lambda i, v: setattr(buf_label, 'text', str(int(v))))
         buf_box.add_widget(buf_slider)
         buf_box.add_widget(buf_label)
@@ -92,7 +92,7 @@ class SettingsScreen(MDScreen):
 
         audio_card.add_widget(MDLabel(
             text="Kleinerer Buffer = schnellere Reaktion, aber mehr CPU.\n"
-                 "Empfohlen: 1024 für Desktop, 2048 für Android.",
+                 "Empfohlen: 2048 für stabile Wiedergabe.",
             font_style="Caption",
             size_hint_y=None,
             height=dp(40),

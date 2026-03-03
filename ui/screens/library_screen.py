@@ -4,19 +4,19 @@ Library Screen - Browse and manage saved sessions.
 
 from kivy.clock import Clock
 from kivy.metrics import dp
-from kivy.uix.scrollview import ScrollView
+from ui.widgets.slider_scrollview import SliderFriendlyScrollView
 
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.button import MDRaisedButton, MDFlatButton, MDIconButton
-from kivymd.uix.card import MDCard
+from ui.widgets.card_container import CardBox
 from kivymd.uix.dialog import MDDialog
 
 from core.session import Session, SessionLibrary
 
 
-class SessionListCard(MDCard):
+class SessionListCard(CardBox):
     """Card representing a saved session in the library."""
 
     def __init__(self, session_info: dict, on_play=None, on_edit=None, on_delete=None, **kwargs):
@@ -31,7 +31,7 @@ class SessionListCard(MDCard):
         self.spacing = dp(8)
         self.size_hint_y = None
         self.height = dp(80)
-        self.md_bg_color = [0.15, 0.15, 0.2, 1]
+        self.bg_color = [0.15, 0.15, 0.2, 1]
         self.radius = [dp(8)]
 
         self._build_ui()
@@ -146,7 +146,7 @@ class LibraryScreen(MDScreen):
         root.add_widget(toolbar)
 
         # Session list
-        self._scroll = ScrollView()
+        self._scroll = SliderFriendlyScrollView()
         self._list = MDBoxLayout(
             orientation="vertical",
             padding=dp(12),

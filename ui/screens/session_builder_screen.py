@@ -10,13 +10,13 @@ Allows users to:
 
 from kivy.clock import Clock
 from kivy.metrics import dp
-from kivy.uix.scrollview import ScrollView
+from ui.widgets.slider_scrollview import SliderFriendlyScrollView
 
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.button import MDRaisedButton, MDFlatButton, MDIconButton
-from kivymd.uix.card import MDCard
+from ui.widgets.card_container import CardBox
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.slider import MDSlider
@@ -31,7 +31,7 @@ from core.patterns import PatternSegment, ChannelConfig, TransitionType, create_
 from core.session import Session, SessionLibrary
 
 
-class SegmentCard(MDCard):
+class SegmentCard(CardBox):
     """Card representing a single segment in the session timeline."""
 
     def __init__(self, segment: PatternSegment, index: int,
@@ -52,7 +52,7 @@ class SegmentCard(MDCard):
         self.spacing = dp(4)
         self.size_hint_y = None
         self.height = dp(100)
-        self.md_bg_color = [0.15, 0.15, 0.2, 1]
+        self.bg_color = [0.15, 0.15, 0.2, 1]
         self.radius = [dp(8)]
 
         self._build_ui()
@@ -191,7 +191,7 @@ class SessionBuilderScreen(MDScreen):
         root.add_widget(toolbar)
 
         # Session info
-        info_card = MDCard(
+        info_card = CardBox(
             orientation="vertical",
             padding=dp(12),
             spacing=dp(8),
@@ -220,7 +220,7 @@ class SessionBuilderScreen(MDScreen):
         root.add_widget(info_card)
 
         # Segment list
-        self._segment_scroll = ScrollView()
+        self._segment_scroll = SliderFriendlyScrollView()
         self._segment_list = MDBoxLayout(
             orientation="vertical",
             padding=dp(8),

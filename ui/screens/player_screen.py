@@ -8,7 +8,7 @@ of all parameters to shape the stimulation experience live.
 from kivy.clock import Clock
 from kivy.metrics import dp
 
-from kivy.uix.scrollview import ScrollView
+from ui.widgets.slider_scrollview import SliderFriendlyScrollView
 
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
@@ -92,7 +92,7 @@ class PlayerScreen(MDScreen):
         root.add_widget(toolbar)
 
         # Scrollable content
-        scroll = ScrollView(do_scroll_x=False)
+        scroll = SliderFriendlyScrollView()
         content = MDBoxLayout(
             orientation="vertical",
             padding=dp(12),
@@ -501,6 +501,13 @@ class PlayerScreen(MDScreen):
 
     def _update_ui(self, dt):
         """Periodic UI update (called by Clock)."""
+        # Detect session end (flag set by audio callback thread)
+        if self._engine.is_playing and getattr(self._engine, '_session_finished', False):
+            self._engine.stop()
+            self._progress_bar.value = 100
+            self._segment_label.text = "Session beendet"
+            return
+
         # Update play button icon
         if self._engine.is_playing:
             self._play_btn.icon = "pause"

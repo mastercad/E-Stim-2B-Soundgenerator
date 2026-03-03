@@ -175,6 +175,7 @@ class AudioEngine:
         self._session_position = 0.0  # Current playback position in seconds
         self._current_segment_idx = 0
         self._session_start_time = 0.0
+        self._session_finished = False  # set True when non-loop session ends
 
         # Stream
         self._stream = None
@@ -220,6 +221,7 @@ class AudioEngine:
 
         self._session = None
         self._prev_tail = None
+        self._session_finished = False
         self.generator.reset_phase()
         self.modulator_a.reset_phase()
         self.modulator_b.reset_phase()
@@ -240,6 +242,7 @@ class AudioEngine:
         self._session_position = 0.0
         self._current_segment_idx = 0
         self._prev_tail = None
+        self._session_finished = False
         self.live_params.master_volume = session.master_volume
 
         if session.segments:
@@ -407,6 +410,11 @@ class AudioEngine:
         to the phase-accumulator in the waveform generator.
         """
         try:
+            # If session has finished, output silence (fade-out already applied)
+            if self._session_finished:
+                outdata[:] = 0
+                return
+
             # Get current parameters (lock-free – see LiveParams.get_snapshot)
             params = self.live_params.get_snapshot()
 
@@ -474,9 +482,9 @@ class AudioEngine:
             # Always save tail (needed IF the next buffer has a param change)
             self._prev_tail = stereo[-cf:].copy() if cf > 0 else None
 
-            # Clip to safe range and write
+            # Clip to safe range and write (stereo is already float32)
             np.clip(stereo, -1.0, 1.0, out=stereo)
-            outdata[:frames] = stereo.astype(np.float32)
+            outdata[:frames] = stereo
 
         except Exception as e:
             # On error, output silence
@@ -501,9 +509,9 @@ class AudioEngine:
                 self._current_segment_idx = 0
                 self.live_params.load_from_segment(self._session.segments[0])
             else:
-                # Session finished
+                # Session finished — mark for stop
                 self._session_position = total
-                # Will trigger stop on next cycle
+                self._session_finished = True
                 return
 
         # Find current segment

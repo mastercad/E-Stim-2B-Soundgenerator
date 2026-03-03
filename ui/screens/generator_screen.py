@@ -11,7 +11,7 @@ Allows users to:
 from kivy.clock import Clock
 from kivy.metrics import dp
 
-from kivy.uix.scrollview import ScrollView
+from ui.widgets.slider_scrollview import SliderFriendlyScrollView
 
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
@@ -110,7 +110,7 @@ class GeneratorScreen(MDScreen):
         root.add_widget(toolbar)
 
         # Scrollable content
-        scroll = ScrollView(do_scroll_x=False)
+        scroll = SliderFriendlyScrollView()
         content = MDBoxLayout(
             orientation="vertical",
             padding=dp(12),

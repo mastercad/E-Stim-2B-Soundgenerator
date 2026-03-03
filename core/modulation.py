@@ -115,11 +115,16 @@ class Modulator:
 
     def __init__(self, sample_rate: int = 44100):
         self.sample_rate = sample_rate
-        self._phase = 0.0
+        self._phase = 0.0            # cumulative sample count
+        self._phase_wrapped = 0.0    # wrapped phase for periodic functions
+        # Wrap period: 1 second of samples — keeps t values small for sin()
+        # while remaining an integer number of samples so t stays continuous.
+        self._wrap_period = float(sample_rate)
 
     def reset_phase(self):
         """Reset modulation phase."""
         self._phase = 0.0
+        self._phase_wrapped = 0.0
 
     def apply(
         self,
@@ -144,10 +149,15 @@ class Modulator:
         num_samples = len(signal) if signal.ndim == 1 else signal.shape[0]
 
         if continuous:
-            t = (np.arange(num_samples) + self._phase) / self.sample_rate
+            # Absolute time (for ramp effects that need to know total elapsed time)
+            t_abs = (np.arange(num_samples) + self._phase) / self.sample_rate
+            # Wrapped time (for periodic effects — prevents float precision loss)
+            t = (np.arange(num_samples) + self._phase_wrapped) / self.sample_rate
             self._phase += num_samples
+            self._phase_wrapped = (self._phase_wrapped + num_samples) % self._wrap_period
         else:
             t = np.arange(num_samples) / self.sample_rate
+            t_abs = t
 
         modulator_func = {
             ModulationType.AM: self._am,
@@ -163,6 +173,9 @@ class Modulator:
         if func is None:
             return signal.copy()
 
+        # Ramp effects need absolute time, periodic effects use wrapped time
+        if params.mod_type in (ModulationType.RAMP_UP, ModulationType.RAMP_DOWN):
+            return func(signal, t_abs, params)
         return func(signal, t, params)
 
     def apply_envelope(
@@ -224,9 +237,13 @@ class Modulator:
         return signal * mod
 
     def _ramp_up(self, signal: np.ndarray, t: np.ndarray, params: ModulationParams) -> np.ndarray:
-        """Gradual intensity increase."""
-        duration = t[-1] - t[0] if len(t) > 1 else 1.0
-        ramp = np.clip(t / max(duration, 0.001), 0.0, 1.0)
+        """Gradual intensity increase.
+
+        Uses absolute time so the ramp progresses across buffers.
+        ``rate`` controls the ramp speed: full ramp duration = 1/rate seconds.
+        """
+        ramp_duration = max(1.0 / max(params.rate, 0.01), 0.1)
+        ramp = np.clip(t / ramp_duration, 0.0, 1.0)
         base = 1.0 - params.depth
         mod = base + params.depth * ramp
         if signal.ndim == 2:
@@ -234,9 +251,13 @@ class Modulator:
         return signal * mod
 
     def _ramp_down(self, signal: np.ndarray, t: np.ndarray, params: ModulationParams) -> np.ndarray:
-        """Gradual intensity decrease."""
-        duration = t[-1] - t[0] if len(t) > 1 else 1.0
-        ramp = np.clip(1.0 - t / max(duration, 0.001), 0.0, 1.0)
+        """Gradual intensity decrease.
+
+        Uses absolute time so the ramp progresses across buffers.
+        ``rate`` controls the ramp speed: full ramp duration = 1/rate seconds.
+        """
+        ramp_duration = max(1.0 / max(params.rate, 0.01), 0.1)
+        ramp = np.clip(1.0 - t / ramp_duration, 0.0, 1.0)
         base = 1.0 - params.depth
         mod = base + params.depth * ramp
         if signal.ndim == 2:
