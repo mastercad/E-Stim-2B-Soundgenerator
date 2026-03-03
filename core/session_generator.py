@@ -42,6 +42,89 @@ class SessionStyle(Enum):
     ADVENTURE = "adventure"           # Diverse patterns
 
 
+# ── Style profiles: strict parameter constraints per session style ────
+# Each style strictly defines which waveforms, frequencies, modulations
+# are allowed, plus drift limits for smooth segment-to-segment transitions.
+_STYLE_PROFILES = {
+    SessionStyle.RELAXATION: {
+        'waveforms': [WaveformType.SINE, WaveformType.TRIANGLE],
+        'freq_range': (20.0, 80.0),
+        'preferred_frequencies': [30, 40, 50, 60, 80],
+        'modulations': [ModulationType.NONE, ModulationType.TREMOLO, ModulationType.WAVE],
+        'mod_rate_range': (0.1, 1.0),
+        'mod_depth_range': (0.1, 0.4),
+        'modulation_probability': 0.5,
+        'transition_duration_range': (3.0, 5.0),
+        'max_freq_drift': 0.15,
+        'waveform_change_prob': 0.15,
+    },
+    SessionStyle.RHYTHMIC: {
+        'waveforms': [WaveformType.SINE, WaveformType.SQUARE, WaveformType.PULSE],
+        'freq_range': (40.0, 150.0),
+        'preferred_frequencies': [50, 60, 80, 100, 120],
+        'modulations': [ModulationType.NONE, ModulationType.AM, ModulationType.TREMOLO],
+        'mod_rate_range': (0.5, 3.0),
+        'mod_depth_range': (0.2, 0.6),
+        'modulation_probability': 0.7,
+        'transition_duration_range': (2.0, 3.5),
+        'max_freq_drift': 0.25,
+        'waveform_change_prob': 0.3,
+    },
+    SessionStyle.INTENSE: {
+        'waveforms': [WaveformType.SQUARE, WaveformType.SAWTOOTH, WaveformType.PULSE],
+        'freq_range': (60.0, 250.0),
+        'preferred_frequencies': [80, 100, 120, 150, 200],
+        'modulations': [ModulationType.NONE, ModulationType.AM, ModulationType.TREMOLO,
+                        ModulationType.FM],
+        'mod_rate_range': (1.0, 5.0),
+        'mod_depth_range': (0.3, 0.8),
+        'modulation_probability': 0.7,
+        'transition_duration_range': (1.5, 2.5),
+        'max_freq_drift': 0.30,
+        'waveform_change_prob': 0.35,
+    },
+    SessionStyle.TEASING: {
+        'waveforms': [WaveformType.SINE, WaveformType.PULSE, WaveformType.TRIANGLE],
+        'freq_range': (30.0, 180.0),
+        'preferred_frequencies': [40, 60, 80, 100, 150],
+        'modulations': [ModulationType.NONE, ModulationType.WAVE, ModulationType.TREMOLO,
+                        ModulationType.RAMP_UP, ModulationType.RAMP_DOWN],
+        'mod_rate_range': (0.3, 2.5),
+        'mod_depth_range': (0.2, 0.7),
+        'modulation_probability': 0.6,
+        'transition_duration_range': (2.5, 4.0),
+        'max_freq_drift': 0.20,
+        'waveform_change_prob': 0.25,
+    },
+    SessionStyle.MEDITATION: {
+        'waveforms': [WaveformType.SINE, WaveformType.TRIANGLE],
+        'freq_range': (20.0, 60.0),
+        'preferred_frequencies': [30, 40, 50],
+        'modulations': [ModulationType.NONE, ModulationType.WAVE],
+        'mod_rate_range': (0.05, 0.5),
+        'mod_depth_range': (0.1, 0.3),
+        'modulation_probability': 0.4,
+        'transition_duration_range': (4.0, 6.0),
+        'max_freq_drift': 0.10,
+        'waveform_change_prob': 0.10,
+    },
+    SessionStyle.ADVENTURE: {
+        'waveforms': [WaveformType.SINE, WaveformType.SQUARE, WaveformType.TRIANGLE,
+                      WaveformType.SAWTOOTH, WaveformType.PULSE],
+        'freq_range': (20.0, 300.0),
+        'preferred_frequencies': [40, 60, 80, 100, 150, 200],
+        'modulations': [ModulationType.NONE, ModulationType.AM, ModulationType.FM,
+                        ModulationType.TREMOLO, ModulationType.WAVE],
+        'mod_rate_range': (0.3, 4.0),
+        'mod_depth_range': (0.2, 0.7),
+        'modulation_probability': 0.6,
+        'transition_duration_range': (1.5, 3.0),
+        'max_freq_drift': 0.35,
+        'waveform_change_prob': 0.40,
+    },
+}
+
+
 @dataclass
 class GeneratorConfig:
     """Configuration for the automatic session generator."""
@@ -122,7 +205,8 @@ class SessionGenerator:
         # Calculate segment durations
         durations = self._generate_durations(cfg, num_phases)
 
-        # Generate each segment
+        # Generate each segment (pass previous for smooth transitions)
+        prev_segment = None
         for i in range(num_phases):
             segment = self._generate_segment(
                 cfg=cfg,
@@ -130,8 +214,10 @@ class SessionGenerator:
                 total_phases=num_phases,
                 intensity=intensities[i],
                 duration=durations[i],
+                prev_segment=prev_segment,
             )
             session.add_segment(segment)
+            prev_segment = segment
 
         return session
 
@@ -262,6 +348,10 @@ class SessionGenerator:
 
         return durations
 
+    def _get_profile(self, cfg: GeneratorConfig) -> dict:
+        """Get the style profile for the current session style."""
+        return _STYLE_PROFILES.get(cfg.style, _STYLE_PROFILES[SessionStyle.RHYTHMIC])
+
     def _generate_segment(
         self,
         cfg: GeneratorConfig,
@@ -269,38 +359,49 @@ class SessionGenerator:
         total_phases: int,
         intensity: float,
         duration: float,
+        prev_segment: Optional[PatternSegment] = None,
     ) -> PatternSegment:
-        """Generate a single segment based on configuration and intensity."""
+        """Generate a single segment, smoothly drifting from the previous one.
 
-        # Select waveform based on style
-        waveform_a = self._select_waveform(cfg)
-        waveform_b = self._select_waveform_b(cfg, waveform_a)
+        Uses the style profile to strictly limit waveforms, frequencies,
+        and modulations.  When a previous segment exists, parameters
+        drift gradually instead of jumping randomly.
+        """
+        profile = self._get_profile(cfg)
 
-        # Select frequency
-        freq_a = self._select_frequency(cfg, intensity)
-        freq_b = self._select_frequency_b(cfg, freq_a)
+        # ── Waveform (style-strict, prefer stability) ──
+        waveform_a = self._select_waveform(profile, prev_segment, 'a')
+        waveform_b = self._select_waveform_b(cfg, profile, waveform_a, prev_segment)
 
-        # Select modulation
-        mod_a = self._select_modulation(cfg, intensity)
-        mod_b = self._select_modulation_b(cfg, mod_a)
+        # ── Frequency (gradual drift from previous) ──
+        freq_a = self._select_frequency(profile, intensity, prev_segment, 'a', cfg.randomness)
+        freq_b = self._select_frequency_b(cfg, profile, freq_a, prev_segment)
 
-        # Determine duty cycle for pulse waveforms
+        # ── Modulation (style-strict) ──
+        mod_a = self._select_modulation(profile, intensity, prev_segment, 'a')
+        mod_b = self._select_modulation_b(cfg, profile, mod_a, prev_segment)
+
+        # ── Duty cycle ──
         duty_a = self._select_duty_cycle(cfg, intensity)
-        duty_b = duty_a if cfg.channel_symmetry > random.random() else self._select_duty_cycle(cfg, intensity)
+        duty_b = (duty_a if cfg.channel_symmetry > random.random()
+                  else self._select_duty_cycle(cfg, intensity))
 
-        # Create envelope if enabled
+        # ── Envelope ──
         use_envelope = cfg.use_envelopes and random.random() < cfg.envelope_probability
-        envelope = self._generate_envelope(cfg, duration, intensity) if use_envelope else EnvelopeADSR()
+        envelope = (self._generate_envelope(cfg, duration, intensity)
+                    if use_envelope else EnvelopeADSR())
 
-        # Transition
+        # ── Transition (always crossfade between segments for smoothness) ──
         is_last = index == total_phases - 1
-        transition = TransitionType.CROSSFADE if not is_last else TransitionType.FADE_OUT_IN
+        td_lo, td_hi = profile['transition_duration_range']
+        transition_dur = random.uniform(td_lo, td_hi)
+        transition = TransitionType.FADE_OUT_IN if is_last else TransitionType.CROSSFADE
 
-        # Phase names
-        phase_names = self._get_phase_name(index, total_phases, cfg.style)
+        # Phase name
+        phase_name = self._get_phase_name(index, total_phases, cfg.style)
 
         segment = PatternSegment(
-            name=phase_names,
+            name=phase_name,
             duration=duration,
             channel_a=ChannelConfig(
                 waveform=waveform_a,
@@ -311,7 +412,8 @@ class SessionGenerator:
             channel_b=ChannelConfig(
                 waveform=waveform_b,
                 frequency=freq_b,
-                amplitude=intensity * (0.8 + random.random() * 0.2 if cfg.channel_symmetry < 1.0 else 1.0),
+                amplitude=intensity * (0.9 + random.random() * 0.1
+                                       if cfg.channel_symmetry < 1.0 else 1.0),
                 duty_cycle=duty_b,
             ),
             modulation_a=mod_a,
@@ -319,110 +421,136 @@ class SessionGenerator:
             use_envelope=use_envelope,
             envelope=envelope,
             transition=transition,
-            transition_duration=min(cfg.transition_duration, duration * 0.3),
+            transition_duration=min(transition_dur, duration * 0.3),
         )
 
         return segment
 
-    def _select_waveform(self, cfg: GeneratorConfig) -> WaveformType:
-        """Select a waveform based on style and preferences."""
-        style_weights = {
-            SessionStyle.RELAXATION: {
-                WaveformType.SINE: 5, WaveformType.TRIANGLE: 3,
-                WaveformType.SAWTOOTH: 1, WaveformType.SQUARE: 1, WaveformType.PULSE: 1,
-            },
-            SessionStyle.RHYTHMIC: {
-                WaveformType.SINE: 2, WaveformType.SQUARE: 3,
-                WaveformType.PULSE: 3, WaveformType.TRIANGLE: 2, WaveformType.SAWTOOTH: 2,
-            },
-            SessionStyle.INTENSE: {
-                WaveformType.SQUARE: 3, WaveformType.SAWTOOTH: 3,
-                WaveformType.PULSE: 2, WaveformType.SINE: 1, WaveformType.TRIANGLE: 1,
-            },
-            SessionStyle.TEASING: {
-                WaveformType.SINE: 3, WaveformType.PULSE: 3,
-                WaveformType.TRIANGLE: 2, WaveformType.SQUARE: 2, WaveformType.SAWTOOTH: 1,
-            },
-            SessionStyle.MEDITATION: {
-                WaveformType.SINE: 6, WaveformType.TRIANGLE: 3,
-                WaveformType.SAWTOOTH: 1, WaveformType.SQUARE: 0, WaveformType.PULSE: 0,
-            },
-            SessionStyle.ADVENTURE: {
-                WaveformType.SINE: 2, WaveformType.SQUARE: 2, WaveformType.TRIANGLE: 2,
-                WaveformType.SAWTOOTH: 2, WaveformType.PULSE: 2,
-            },
-        }
+    # ── Style-strict selection helpers ────────────────────────────────
 
-        weights = style_weights.get(cfg.style, {})
-        # Filter to allowed waveforms
-        choices = []
-        probs = []
-        for wf in cfg.allowed_waveforms:
-            choices.append(wf)
-            probs.append(weights.get(wf, 1))
+    def _select_waveform(
+        self, profile: dict, prev_segment: Optional[PatternSegment], channel: str,
+    ) -> WaveformType:
+        """Select a waveform strictly from the style profile.
 
-        if not choices:
+        Prefers keeping the previous segment's waveform to avoid jarring
+        changes.  The waveform_change_prob controls how often a switch
+        happens.
+        """
+        allowed = profile['waveforms']
+        if not allowed:
             return WaveformType.SINE
 
-        total = sum(probs)
-        probs = [p / total for p in probs]
-        return random.choices(choices, weights=probs, k=1)[0]
+        if prev_segment is not None:
+            prev_wf = (prev_segment.channel_a.waveform if channel == 'a'
+                       else prev_segment.channel_b.waveform)
+            if prev_wf in allowed and random.random() > profile['waveform_change_prob']:
+                return prev_wf
 
-    def _select_waveform_b(self, cfg: GeneratorConfig, waveform_a: WaveformType) -> WaveformType:
-        """Select waveform for channel B based on symmetry setting."""
+        return random.choice(allowed)
+
+    def _select_waveform_b(
+        self, cfg: GeneratorConfig, profile: dict,
+        waveform_a: WaveformType, prev_segment: Optional[PatternSegment],
+    ) -> WaveformType:
+        """Select waveform B — prefers matching A for channel symmetry."""
         if random.random() < cfg.channel_symmetry:
             return waveform_a
-        return self._select_waveform(cfg)
+        return self._select_waveform(profile, prev_segment, 'b')
 
-    def _select_frequency(self, cfg: GeneratorConfig, intensity: float) -> float:
-        """Select a frequency based on preferences and intensity."""
-        if cfg.preferred_frequencies and random.random() > cfg.randomness:
-            # Use a preferred frequency with some variation
-            base = random.choice(cfg.preferred_frequencies)
-            variation = base * cfg.randomness * 0.2
-            freq = base + random.uniform(-variation, variation)
+    def _select_frequency(
+        self, profile: dict, intensity: float,
+        prev_segment: Optional[PatternSegment], channel: str,
+        randomness: float,
+    ) -> float:
+        """Select frequency within the style's range, drifting gradually.
+
+        If a previous segment exists the new frequency drifts at most
+        max_freq_drift (e.g. 15 %) from the previous value, clamped to
+        the style's allowed range.
+        """
+        lo, hi = profile['freq_range']
+
+        if prev_segment is not None:
+            prev_freq = (prev_segment.channel_a.frequency if channel == 'a'
+                         else prev_segment.channel_b.frequency)
+            max_drift = profile['max_freq_drift']
+            drift = random.uniform(-max_drift, max_drift)
+            freq = prev_freq * (1.0 + drift)
         else:
-            # Random within range, biased by intensity
-            low, high = cfg.freq_range
-            # Higher intensity tends toward higher frequencies
-            center = low + (high - low) * (0.3 + 0.7 * intensity)
-            spread = (high - low) * 0.2
-            freq = random.gauss(center, spread)
+            preferred = profile['preferred_frequencies']
+            if preferred and random.random() > randomness:
+                freq = random.choice(preferred)
+            else:
+                freq = random.uniform(lo, hi)
 
-        return np.clip(freq, cfg.freq_range[0], cfg.freq_range[1])
+        return float(np.clip(freq, lo, hi))
 
-    def _select_frequency_b(self, cfg: GeneratorConfig, freq_a: float) -> float:
-        """Select frequency for channel B."""
+    def _select_frequency_b(
+        self, cfg: GeneratorConfig, profile: dict,
+        freq_a: float, prev_segment: Optional[PatternSegment],
+    ) -> float:
+        """Select frequency B — similar to A with optional slight detuning."""
+        lo, hi = profile['freq_range']
         if random.random() < cfg.channel_symmetry:
-            # Similar frequency with small detuning (creates interesting beats)
-            detune = random.uniform(-5, 5)
-            return max(cfg.freq_range[0], freq_a + detune)
-        return self._select_frequency(cfg, 0.5)
+            detune = random.uniform(-3, 3)
+            return float(np.clip(freq_a + detune, lo, hi))
+        return self._select_frequency(profile, 0.5, prev_segment, 'b', 0.3)
 
-    def _select_modulation(self, cfg: GeneratorConfig, intensity: float) -> ModulationParams:
-        """Select modulation parameters."""
-        if random.random() > cfg.modulation_probability:
+    def _select_modulation(
+        self, profile: dict, intensity: float,
+        prev_segment: Optional[PatternSegment], channel: str,
+    ) -> ModulationParams:
+        """Select modulation strictly from the style profile.
+
+        Prefers keeping the previous modulation type and drifts
+        rate / depth gently for smooth transitions.
+        """
+        if random.random() > profile['modulation_probability']:
             return ModulationParams(mod_type=ModulationType.NONE)
 
-        available = [m for m in cfg.allowed_modulations if m != ModulationType.NONE]
-        if not available:
+        allowed = [m for m in profile['modulations'] if m != ModulationType.NONE]
+        if not allowed:
             return ModulationParams(mod_type=ModulationType.NONE)
 
-        mod_type = random.choice(available)
-        rate = random.uniform(0.2, 3.0)
-        depth = random.uniform(0.2, 0.8) * (0.5 + 0.5 * intensity)
+        rate_lo, rate_hi = profile['mod_rate_range']
+        depth_lo, depth_hi = profile['mod_depth_range']
+
+        # Prefer previous modulation type for smooth transitions
+        if prev_segment is not None:
+            prev_mod = (prev_segment.modulation_a if channel == 'a'
+                        else prev_segment.modulation_b)
+            if prev_mod.mod_type in allowed and random.random() > 0.3:
+                new_rate = prev_mod.rate * random.uniform(0.85, 1.15)
+                new_depth = prev_mod.depth * random.uniform(0.85, 1.15)
+                return ModulationParams(
+                    mod_type=prev_mod.mod_type,
+                    rate=float(np.clip(new_rate, rate_lo, rate_hi)),
+                    depth=float(np.clip(new_depth, depth_lo, depth_hi)),
+                )
+
+        mod_type = random.choice(allowed)
+        rate = random.uniform(rate_lo, rate_hi)
+        depth = random.uniform(depth_lo, depth_hi) * (0.5 + 0.5 * intensity)
 
         return ModulationParams(mod_type=mod_type, rate=rate, depth=depth)
 
-    def _select_modulation_b(self, cfg: GeneratorConfig, mod_a: ModulationParams) -> ModulationParams:
-        """Select modulation for channel B."""
+    def _select_modulation_b(
+        self, cfg: GeneratorConfig, profile: dict,
+        mod_a: ModulationParams, prev_segment: Optional[PatternSegment],
+    ) -> ModulationParams:
+        """Select modulation B — prefers matching A."""
         if random.random() < cfg.channel_symmetry:
+            rate_lo, rate_hi = profile['mod_rate_range']
+            depth_lo, depth_hi = profile['mod_depth_range']
             return ModulationParams(
                 mod_type=mod_a.mod_type,
-                rate=mod_a.rate * random.uniform(0.9, 1.1),
-                depth=mod_a.depth * random.uniform(0.9, 1.1),
+                rate=float(np.clip(
+                    mod_a.rate * random.uniform(0.9, 1.1), rate_lo, rate_hi)),
+                depth=float(np.clip(
+                    mod_a.depth * random.uniform(0.9, 1.1), depth_lo, depth_hi)),
             )
-        return self._select_modulation(cfg, 0.5)
+        return self._select_modulation(profile, 0.5, prev_segment, 'b')
 
     def _select_duty_cycle(self, cfg: GeneratorConfig, intensity: float) -> float:
         """Select duty cycle based on intensity."""
