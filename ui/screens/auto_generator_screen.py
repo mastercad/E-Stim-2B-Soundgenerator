@@ -173,8 +173,8 @@ class AutoGeneratorScreen(MDScreen):
         # Channel symmetry
         sym_box = MDBoxLayout(size_hint_y=None, height=dp(50))
         sym_box.add_widget(MDLabel(text="Kanal-Symmetrie", size_hint_x=0.3))
-        self._sym_slider = MDSlider(min=0, max=100, value=70, size_hint_x=0.5)
-        self._sym_label = MDLabel(text="70%", size_hint_x=0.2, halign="right", font_style="Caption")
+        self._sym_slider = MDSlider(min=0, max=100, value=40, size_hint_x=0.5)
+        self._sym_label = MDLabel(text="40%", size_hint_x=0.2, halign="right", font_style="Caption")
         self._sym_slider.bind(value=self._on_sym_change)
         sym_box.add_widget(self._sym_slider)
         sym_box.add_widget(self._sym_label)
@@ -187,8 +187,8 @@ class AutoGeneratorScreen(MDScreen):
 
         fmin_box = MDBoxLayout(size_hint_y=None, height=dp(50))
         fmin_box.add_widget(MDLabel(text="Min Hz", size_hint_x=0.2))
-        self._fmin_slider = MDSlider(min=2, max=150, value=10, size_hint_x=0.6)
-        self._fmin_label = MDLabel(text="10 Hz", size_hint_x=0.2, halign="right", font_style="Caption")
+        self._fmin_slider = MDSlider(min=50, max=500, value=200, size_hint_x=0.6)
+        self._fmin_label = MDLabel(text="200 Hz", size_hint_x=0.2, halign="right", font_style="Caption")
         self._fmin_slider.bind(value=lambda i, v: self._on_freq_range('min', v))
         fmin_box.add_widget(self._fmin_slider)
         fmin_box.add_widget(self._fmin_label)
@@ -196,8 +196,8 @@ class AutoGeneratorScreen(MDScreen):
 
         fmax_box = MDBoxLayout(size_hint_y=None, height=dp(50))
         fmax_box.add_widget(MDLabel(text="Max Hz", size_hint_x=0.2))
-        self._fmax_slider = MDSlider(min=50, max=1000, value=250, size_hint_x=0.6)
-        self._fmax_label = MDLabel(text="250 Hz", size_hint_x=0.2, halign="right", font_style="Caption")
+        self._fmax_slider = MDSlider(min=200, max=1000, value=800, size_hint_x=0.6)
+        self._fmax_label = MDLabel(text="800 Hz", size_hint_x=0.2, halign="right", font_style="Caption")
         self._fmax_slider.bind(value=lambda i, v: self._on_freq_range('max', v))
         fmax_box.add_widget(self._fmax_slider)
         fmax_box.add_widget(self._fmax_label)

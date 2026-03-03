@@ -43,84 +43,122 @@ class SessionStyle(Enum):
 
 
 # ── Style profiles: strict parameter constraints per session style ────
-# Each style strictly defines which waveforms, frequencies, modulations
-# are allowed, plus drift limits for smooth segment-to-segment transitions.
+#
+# Based on analysis of ~4000 real E-Stim audio files (Claude SSG, BigTip,
+# EFun, Sparkie, Yoda, Stimaddict, Henk, etc.) the key characteristics
+# of professional E-Stim signals are:
+#
+#   1. HIGH carrier frequencies: 200-1000 Hz (typically 300-800 Hz)
+#      – this is what the E-Stim device converts to electrical pulses
+#   2. Rich harmonic content: square/pulse/saw waveforms, not just sine
+#   3. AM modulation at 0.5-10 Hz creates the "feel" pattern (throbbing,
+#      pulsing, rhythmic sensations)
+#   4. Significant stereo independence: L/R channels often have
+#      different amplitudes, modulation depth, or slight frequency offsets
+#   5. Slow frequency evolution: carrier drifts gradually over 30-200s
+#   6. Pulse/burst patterns: variable duty cycles for texture variety
+#
 _STYLE_PROFILES = {
     SessionStyle.RELAXATION: {
-        'waveforms': [WaveformType.SINE, WaveformType.TRIANGLE],
-        'freq_range': (20.0, 80.0),
-        'preferred_frequencies': [30, 40, 50, 60, 80],
-        'modulations': [ModulationType.NONE, ModulationType.TREMOLO, ModulationType.WAVE],
-        'mod_rate_range': (0.1, 1.0),
-        'mod_depth_range': (0.1, 0.4),
-        'modulation_probability': 0.5,
-        'transition_duration_range': (3.0, 5.0),
-        'max_freq_drift': 0.15,
-        'waveform_change_prob': 0.15,
+        # Smooth carrier, moderate frequency, slow gentle AM
+        'waveforms': [WaveformType.SINE, WaveformType.TRIANGLE, WaveformType.PULSE],
+        'freq_range': (200.0, 500.0),
+        'preferred_frequencies': [250, 300, 350, 400],
+        'modulations': [ModulationType.TREMOLO, ModulationType.WAVE, ModulationType.AM],
+        'mod_rate_range': (0.3, 2.0),
+        'mod_depth_range': (0.3, 0.6),
+        'modulation_probability': 0.85,
+        'transition_duration_range': (3.0, 6.0),
+        'max_freq_drift': 0.08,
+        'waveform_change_prob': 0.10,
+        'channel_symmetry_bias': 0.6,      # moderate L/R independence
+        'duty_cycle_range': (0.3, 0.7),
+        'stereo_freq_offset': (0.0, 15.0), # slight L/R detuning
     },
     SessionStyle.RHYTHMIC: {
-        'waveforms': [WaveformType.SINE, WaveformType.SQUARE, WaveformType.PULSE],
-        'freq_range': (40.0, 150.0),
-        'preferred_frequencies': [50, 60, 80, 100, 120],
-        'modulations': [ModulationType.NONE, ModulationType.AM, ModulationType.TREMOLO],
-        'mod_rate_range': (0.5, 3.0),
-        'mod_depth_range': (0.2, 0.6),
-        'modulation_probability': 0.7,
-        'transition_duration_range': (2.0, 3.5),
-        'max_freq_drift': 0.25,
-        'waveform_change_prob': 0.3,
+        # Pulse/square carrier, rhythmic AM creating beat patterns
+        'waveforms': [WaveformType.SQUARE, WaveformType.PULSE, WaveformType.SINE],
+        'freq_range': (300.0, 700.0),
+        'preferred_frequencies': [350, 440, 500, 600],
+        'modulations': [ModulationType.AM, ModulationType.TREMOLO, ModulationType.WAVE],
+        'mod_rate_range': (1.0, 6.0),
+        'mod_depth_range': (0.4, 0.8),
+        'modulation_probability': 0.90,
+        'transition_duration_range': (2.0, 4.0),
+        'max_freq_drift': 0.12,
+        'waveform_change_prob': 0.25,
+        'channel_symmetry_bias': 0.4,
+        'duty_cycle_range': (0.2, 0.6),
+        'stereo_freq_offset': (0.0, 30.0),
     },
     SessionStyle.INTENSE: {
+        # Harsh carrier (square/saw/pulse), high freq, strong fast AM
         'waveforms': [WaveformType.SQUARE, WaveformType.SAWTOOTH, WaveformType.PULSE],
-        'freq_range': (60.0, 250.0),
-        'preferred_frequencies': [80, 100, 120, 150, 200],
-        'modulations': [ModulationType.NONE, ModulationType.AM, ModulationType.TREMOLO,
-                        ModulationType.FM],
-        'mod_rate_range': (1.0, 5.0),
-        'mod_depth_range': (0.3, 0.8),
-        'modulation_probability': 0.7,
-        'transition_duration_range': (1.5, 2.5),
-        'max_freq_drift': 0.30,
-        'waveform_change_prob': 0.35,
+        'freq_range': (400.0, 900.0),
+        'preferred_frequencies': [480, 560, 640, 800],
+        'modulations': [ModulationType.AM, ModulationType.TREMOLO, ModulationType.FM],
+        'mod_rate_range': (2.0, 10.0),
+        'mod_depth_range': (0.5, 0.9),
+        'modulation_probability': 0.95,
+        'transition_duration_range': (1.5, 3.0),
+        'max_freq_drift': 0.15,
+        'waveform_change_prob': 0.30,
+        'channel_symmetry_bias': 0.3,
+        'duty_cycle_range': (0.15, 0.5),
+        'stereo_freq_offset': (5.0, 50.0),
     },
     SessionStyle.TEASING: {
-        'waveforms': [WaveformType.SINE, WaveformType.PULSE, WaveformType.TRIANGLE],
-        'freq_range': (30.0, 180.0),
-        'preferred_frequencies': [40, 60, 80, 100, 150],
-        'modulations': [ModulationType.NONE, ModulationType.WAVE, ModulationType.TREMOLO,
-                        ModulationType.RAMP_UP, ModulationType.RAMP_DOWN],
-        'mod_rate_range': (0.3, 2.5),
-        'mod_depth_range': (0.2, 0.7),
-        'modulation_probability': 0.6,
-        'transition_duration_range': (2.5, 4.0),
-        'max_freq_drift': 0.20,
-        'waveform_change_prob': 0.25,
+        # Variable carrier, unpredictable AM, high stereo independence
+        'waveforms': [WaveformType.SINE, WaveformType.PULSE, WaveformType.SQUARE,
+                      WaveformType.TRIANGLE],
+        'freq_range': (250.0, 700.0),
+        'preferred_frequencies': [300, 400, 500, 600],
+        'modulations': [ModulationType.WAVE, ModulationType.TREMOLO,
+                        ModulationType.RAMP_UP, ModulationType.RAMP_DOWN, ModulationType.AM],
+        'mod_rate_range': (0.5, 5.0),
+        'mod_depth_range': (0.3, 0.8),
+        'modulation_probability': 0.85,
+        'transition_duration_range': (2.0, 4.0),
+        'max_freq_drift': 0.15,
+        'waveform_change_prob': 0.30,
+        'channel_symmetry_bias': 0.3,
+        'duty_cycle_range': (0.2, 0.7),
+        'stereo_freq_offset': (0.0, 40.0),
     },
     SessionStyle.MEDITATION: {
+        # Smooth sine carrier, low-moderate freq, very slow AM
         'waveforms': [WaveformType.SINE, WaveformType.TRIANGLE],
-        'freq_range': (20.0, 60.0),
-        'preferred_frequencies': [30, 40, 50],
-        'modulations': [ModulationType.NONE, ModulationType.WAVE],
-        'mod_rate_range': (0.05, 0.5),
-        'mod_depth_range': (0.1, 0.3),
-        'modulation_probability': 0.4,
-        'transition_duration_range': (4.0, 6.0),
-        'max_freq_drift': 0.10,
-        'waveform_change_prob': 0.10,
+        'freq_range': (200.0, 400.0),
+        'preferred_frequencies': [250, 300, 350],
+        'modulations': [ModulationType.WAVE, ModulationType.TREMOLO],
+        'mod_rate_range': (0.2, 1.0),
+        'mod_depth_range': (0.2, 0.5),
+        'modulation_probability': 0.80,
+        'transition_duration_range': (4.0, 8.0),
+        'max_freq_drift': 0.05,
+        'waveform_change_prob': 0.08,
+        'channel_symmetry_bias': 0.7,
+        'duty_cycle_range': (0.4, 0.7),
+        'stereo_freq_offset': (0.0, 5.0),
     },
     SessionStyle.ADVENTURE: {
+        # Full range of carriers and modulations, high variety
         'waveforms': [WaveformType.SINE, WaveformType.SQUARE, WaveformType.TRIANGLE,
-                      WaveformType.SAWTOOTH, WaveformType.PULSE],
-        'freq_range': (20.0, 300.0),
-        'preferred_frequencies': [40, 60, 80, 100, 150, 200],
-        'modulations': [ModulationType.NONE, ModulationType.AM, ModulationType.FM,
-                        ModulationType.TREMOLO, ModulationType.WAVE],
-        'mod_rate_range': (0.3, 4.0),
-        'mod_depth_range': (0.2, 0.7),
-        'modulation_probability': 0.6,
-        'transition_duration_range': (1.5, 3.0),
-        'max_freq_drift': 0.35,
-        'waveform_change_prob': 0.40,
+                      WaveformType.SAWTOOTH, WaveformType.PULSE, WaveformType.BURST],
+        'freq_range': (200.0, 900.0),
+        'preferred_frequencies': [300, 440, 500, 640, 800],
+        'modulations': [ModulationType.AM, ModulationType.FM,
+                        ModulationType.TREMOLO, ModulationType.WAVE,
+                        ModulationType.RAMP_UP, ModulationType.RAMP_DOWN],
+        'mod_rate_range': (0.5, 8.0),
+        'mod_depth_range': (0.3, 0.8),
+        'modulation_probability': 0.90,
+        'transition_duration_range': (1.5, 4.0),
+        'max_freq_drift': 0.20,
+        'waveform_change_prob': 0.35,
+        'channel_symmetry_bias': 0.35,
+        'duty_cycle_range': (0.15, 0.7),
+        'stereo_freq_offset': (0.0, 60.0),
     },
 }
 
@@ -142,9 +180,9 @@ class GeneratorConfig:
     min_intensity: float = 0.2        # Minimum amplitude [0.0, 1.0]
     max_intensity: float = 0.9        # Maximum amplitude [0.0, 1.0]
 
-    # Frequency preferences
-    preferred_frequencies: List[float] = field(default_factory=lambda: [30, 60, 80, 100, 150])
-    freq_range: Tuple[float, float] = (10.0, 250.0)
+    # Frequency preferences (carrier frequency for E-Stim)
+    preferred_frequencies: List[float] = field(default_factory=lambda: [300, 400, 500, 600, 800])
+    freq_range: Tuple[float, float] = (200.0, 800.0)
 
     # Waveform preferences
     allowed_waveforms: List[WaveformType] = field(default_factory=lambda: [
@@ -154,13 +192,13 @@ class GeneratorConfig:
 
     # Modulation preferences
     allowed_modulations: List[ModulationType] = field(default_factory=lambda: [
-        ModulationType.NONE, ModulationType.AM, ModulationType.TREMOLO, ModulationType.WAVE
+        ModulationType.AM, ModulationType.TREMOLO, ModulationType.WAVE
     ])
-    modulation_probability: float = 0.6  # Chance of modulation per segment
+    modulation_probability: float = 0.85  # E-Stim signals almost always have AM
 
     # Variation
     randomness: float = 0.3           # Overall randomness [0.0, 1.0]
-    channel_symmetry: float = 0.7     # How similar A and B should be [0.0=independent, 1.0=identical]
+    channel_symmetry: float = 0.4     # How similar A and B should be [0.0=independent, 1.0=identical]
 
     # Transitions
     transition_duration: float = 2.0  # Default transition time
@@ -361,37 +399,86 @@ class SessionGenerator:
         duration: float,
         prev_segment: Optional[PatternSegment] = None,
     ) -> PatternSegment:
-        """Generate a single segment, smoothly drifting from the previous one.
+        """Generate a single segment modelled on real E-Stim audio patterns.
 
-        Uses the style profile to strictly limit waveforms, frequencies,
-        and modulations.  When a previous segment exists, parameters
-        drift gradually instead of jumping randomly.
+        Architecture (based on analysis of ~4000 professional E-Stim files):
+
+          Signal = Carrier(200-1000 Hz, rich waveform)
+                 × AM_Envelope(0.5-10 Hz, depth 0.3-0.9)
+                 × IntensityScale
+
+        Left and right channels have independent but correlated
+        parameters (frequency offsets, amplitude differences, different
+        AM depths) to create spatial/travelling sensations.
         """
         profile = self._get_profile(cfg)
+        sym_bias = profile.get('channel_symmetry_bias', cfg.channel_symmetry)
+        # Effective symmetry: blend config slider with style recommendation
+        eff_symmetry = cfg.channel_symmetry * 0.5 + sym_bias * 0.5
 
-        # ── Waveform (style-strict, prefer stability) ──
+        # ── Carrier waveform (style-strict, prefer stability) ──
         waveform_a = self._select_waveform(profile, prev_segment, 'a')
-        waveform_b = self._select_waveform_b(cfg, profile, waveform_a, prev_segment)
+        if random.random() < eff_symmetry:
+            waveform_b = waveform_a
+        else:
+            waveform_b = self._select_waveform(profile, prev_segment, 'b')
 
-        # ── Frequency (gradual drift from previous) ──
+        # ── Carrier frequency (gradual drift, high range) ──
         freq_a = self._select_frequency(profile, intensity, prev_segment, 'a', cfg.randomness)
-        freq_b = self._select_frequency_b(cfg, profile, freq_a, prev_segment)
 
-        # ── Modulation (style-strict) ──
+        # Channel B: same carrier with optional stereo offset
+        stereo_lo, stereo_hi = profile.get('stereo_freq_offset', (0.0, 20.0))
+        if random.random() < eff_symmetry:
+            # Slight detuning for spatial effect (like real E-Stim files)
+            offset = random.uniform(stereo_lo, stereo_hi)
+            if random.random() < 0.5:
+                offset = -offset
+            lo, hi = profile['freq_range']
+            freq_b = float(np.clip(freq_a + offset, lo, hi))
+        else:
+            freq_b = self._select_frequency(profile, intensity, prev_segment, 'b', cfg.randomness)
+
+        # ── Modulation: AM envelope is the core of E-Stim sensation ──
         mod_a = self._select_modulation(profile, intensity, prev_segment, 'a')
-        mod_b = self._select_modulation_b(cfg, profile, mod_a, prev_segment)
 
-        # ── Duty cycle ──
-        duty_a = self._select_duty_cycle(cfg, intensity)
-        duty_b = (duty_a if cfg.channel_symmetry > random.random()
-                  else self._select_duty_cycle(cfg, intensity))
+        # Channel B modulation: correlated but independent
+        if random.random() < eff_symmetry * 0.7:
+            # Similar modulation with slight rate/depth variation
+            rate_lo, rate_hi = profile['mod_rate_range']
+            depth_lo, depth_hi = profile['mod_depth_range']
+            mod_b = ModulationParams(
+                mod_type=mod_a.mod_type,
+                rate=float(np.clip(
+                    mod_a.rate * random.uniform(0.8, 1.2), rate_lo, rate_hi)),
+                depth=float(np.clip(
+                    mod_a.depth * random.uniform(0.7, 1.3), depth_lo, depth_hi)),
+            )
+        else:
+            mod_b = self._select_modulation(profile, intensity, prev_segment, 'b')
+
+        # ── Duty cycle: controls pulse width for PULSE/BURST waveforms ──
+        dc_lo, dc_hi = profile.get('duty_cycle_range', (0.2, 0.7))
+        duty_a = random.uniform(dc_lo, dc_hi)
+        if random.random() < eff_symmetry:
+            duty_b = duty_a * random.uniform(0.9, 1.1)
+            duty_b = float(np.clip(duty_b, dc_lo, dc_hi))
+        else:
+            duty_b = random.uniform(dc_lo, dc_hi)
+
+        # ── Amplitude: L/R independence for spatial effect ──
+        amp_a = intensity
+        if random.random() < eff_symmetry:
+            amp_b = intensity * random.uniform(0.85, 1.0)
+        else:
+            # Significant L/R amplitude difference (like BT / Heaven and Hell)
+            amp_b = intensity * random.uniform(0.5, 1.0)
 
         # ── Envelope ──
         use_envelope = cfg.use_envelopes and random.random() < cfg.envelope_probability
         envelope = (self._generate_envelope(cfg, duration, intensity)
                     if use_envelope else EnvelopeADSR())
 
-        # ── Transition (always crossfade between segments for smoothness) ──
+        # ── Transition ──
         is_last = index == total_phases - 1
         td_lo, td_hi = profile['transition_duration_range']
         transition_dur = random.uniform(td_lo, td_hi)
@@ -406,14 +493,13 @@ class SessionGenerator:
             channel_a=ChannelConfig(
                 waveform=waveform_a,
                 frequency=freq_a,
-                amplitude=intensity,
+                amplitude=amp_a,
                 duty_cycle=duty_a,
             ),
             channel_b=ChannelConfig(
                 waveform=waveform_b,
                 frequency=freq_b,
-                amplitude=intensity * (0.9 + random.random() * 0.1
-                                       if cfg.channel_symmetry < 1.0 else 1.0),
+                amplitude=amp_b,
                 duty_cycle=duty_b,
             ),
             modulation_a=mod_a,
@@ -449,25 +535,15 @@ class SessionGenerator:
 
         return random.choice(allowed)
 
-    def _select_waveform_b(
-        self, cfg: GeneratorConfig, profile: dict,
-        waveform_a: WaveformType, prev_segment: Optional[PatternSegment],
-    ) -> WaveformType:
-        """Select waveform B — prefers matching A for channel symmetry."""
-        if random.random() < cfg.channel_symmetry:
-            return waveform_a
-        return self._select_waveform(profile, prev_segment, 'b')
-
     def _select_frequency(
         self, profile: dict, intensity: float,
         prev_segment: Optional[PatternSegment], channel: str,
         randomness: float,
     ) -> float:
-        """Select frequency within the style's range, drifting gradually.
+        """Select carrier frequency within the style's range, drifting gradually.
 
-        If a previous segment exists the new frequency drifts at most
-        max_freq_drift (e.g. 15 %) from the previous value, clamped to
-        the style's allowed range.
+        Real E-Stim files show carriers at 200-1000 Hz with slow drift
+        over time (e.g. Claude SSG-C.7 Dynamique rises 600→700 Hz over 200s).
         """
         lo, hi = profile['freq_range']
 
@@ -486,25 +562,15 @@ class SessionGenerator:
 
         return float(np.clip(freq, lo, hi))
 
-    def _select_frequency_b(
-        self, cfg: GeneratorConfig, profile: dict,
-        freq_a: float, prev_segment: Optional[PatternSegment],
-    ) -> float:
-        """Select frequency B — similar to A with optional slight detuning."""
-        lo, hi = profile['freq_range']
-        if random.random() < cfg.channel_symmetry:
-            detune = random.uniform(-3, 3)
-            return float(np.clip(freq_a + detune, lo, hi))
-        return self._select_frequency(profile, 0.5, prev_segment, 'b', 0.3)
-
     def _select_modulation(
         self, profile: dict, intensity: float,
         prev_segment: Optional[PatternSegment], channel: str,
     ) -> ModulationParams:
-        """Select modulation strictly from the style profile.
+        """Select AM modulation — the core of E-Stim sensation patterns.
 
-        Prefers keeping the previous modulation type and drifts
-        rate / depth gently for smooth transitions.
+        Real E-Stim files use AM at 0.5-10 Hz with depth 0.3-0.9.
+        This creates the pulsing/throbbing/rhythmic feel.
+        Modulation is almost always present in professional E-Stim audio.
         """
         if random.random() > profile['modulation_probability']:
             return ModulationParams(mod_type=ModulationType.NONE)
@@ -531,32 +597,11 @@ class SessionGenerator:
 
         mod_type = random.choice(allowed)
         rate = random.uniform(rate_lo, rate_hi)
-        depth = random.uniform(depth_lo, depth_hi) * (0.5 + 0.5 * intensity)
+        # Higher intensity → deeper modulation for more pronounced effect
+        depth = random.uniform(depth_lo, depth_hi) * (0.6 + 0.4 * intensity)
+        depth = float(np.clip(depth, depth_lo, depth_hi))
 
         return ModulationParams(mod_type=mod_type, rate=rate, depth=depth)
-
-    def _select_modulation_b(
-        self, cfg: GeneratorConfig, profile: dict,
-        mod_a: ModulationParams, prev_segment: Optional[PatternSegment],
-    ) -> ModulationParams:
-        """Select modulation B — prefers matching A."""
-        if random.random() < cfg.channel_symmetry:
-            rate_lo, rate_hi = profile['mod_rate_range']
-            depth_lo, depth_hi = profile['mod_depth_range']
-            return ModulationParams(
-                mod_type=mod_a.mod_type,
-                rate=float(np.clip(
-                    mod_a.rate * random.uniform(0.9, 1.1), rate_lo, rate_hi)),
-                depth=float(np.clip(
-                    mod_a.depth * random.uniform(0.9, 1.1), depth_lo, depth_hi)),
-            )
-        return self._select_modulation(profile, 0.5, prev_segment, 'b')
-
-    def _select_duty_cycle(self, cfg: GeneratorConfig, intensity: float) -> float:
-        """Select duty cycle based on intensity."""
-        base = 0.3 + 0.4 * intensity  # Higher intensity → wider pulses
-        variation = cfg.randomness * 0.2
-        return np.clip(base + random.uniform(-variation, variation), 0.1, 0.9)
 
     def _generate_envelope(self, cfg: GeneratorConfig, duration: float, intensity: float) -> EnvelopeADSR:
         """Generate an ADSR envelope for a segment."""
@@ -643,6 +688,7 @@ def quick_generate(
         intensity_curve=IntensityCurve(curve),
         min_intensity=min_int,
         max_intensity=max_int,
+        freq_range=(200.0, 800.0),
     )
 
     generator = SessionGenerator(config)
